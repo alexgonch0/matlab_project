@@ -233,7 +233,7 @@ specanalyzer = dsp.SpectrumAnalyzer('SampleRate',fs,...
 % Next, run the simulation loop. 
 
 %rng(2012);
-Nsweep = 1;%4;
+Nsweep = 4;%4;
 xr = complex(zeros(waveform.SampleRate*waveform.SweepTime,Nsweep));
 
 for m = 1:Nsweep
