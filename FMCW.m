@@ -175,7 +175,7 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
 
     
     %Est Range
-    [y,x] = max(mag2db(P1)) % find peak FFT point
+    [y,x] = max(mag2db(P1)); % find peak FFT point
     rng(x) % map to range array
 end
 
