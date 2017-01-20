@@ -110,7 +110,7 @@ radarmotion = phased.Platform();
 
 
 
-        Nsweep = 4;
+        Nsweep = 5;
         % Alex comment
         % #justcapstonethings
 
@@ -184,7 +184,7 @@ function [txsig_out] = circulator(coupling_factor, initial, target)
 end
 
 function [IQ_Data] = phase_noise(IQ_Data)
-    %pnoise = comm.PhaseNoise('Level',-1,'FrequencyOffset',10);
-    %IQ_Data = pnoise(IQ_Data);
-    IQ_Data = awgn(IQ_Data,1,'measured','db');
+    pnoise = comm.PhaseNoise('Level',-40,'FrequencyOffset',10);
+    IQ_Data = pnoise(IQ_Data);
+    IQ_Data = awgn(IQ_Data,60,'measured','db');
 end
