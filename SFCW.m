@@ -18,28 +18,32 @@ tm = 0.00001; %Use sweep of 1ms
 % and the sweep slope is calculated using both sweep bandwidth and sweep
 % time.
 
-fs  = 24e9/10;
 
 smshop = 10%samples per hop 
 BW = 2e9
-Fc = 4e6
+Fc = 1e7
+fs  = BW*2;
 
 FreqSteps = BW/Fc
-L = length(linspace(0,smshop/Fc,1000*smshop));
+L = length(linspace(0,smshop/Fc,1001));
 wave = zeros(L,FreqSteps);
 figure(1)
 for steps = 1:FreqSteps
-   t  = linspace(0,smshop/Fc*steps,1000*smshop) ;
-   I  = cos(2*pi*Fc*steps*t);
-   Q  = sin(2*pi*Fc*steps*t);
+   t = [0:1:1000];
+   I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
+   Q  = sin(((2*pi*(Fc*steps/(2*BW)*t))));
    Z  = I - 1i*Q;
    %wave = vertcat(wave,Z');
    wave(:,steps) = Z';
    %plot(I)
-   Frq = Fc*steps;
+   %Frq = Fc*steps;
    steps
-   %plot(real(wave(:,steps)));
+   plot(real(wave(:,steps)));
 end
+t = [0:1:1000];
+%I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
+%plot(t*1/BW*1000,I);
+
 %wind  = hann(length(wave))';
 %wave = wave.*wind';
 %spectrogram(wave,32,16,32,2e3,'yaxis');
@@ -76,7 +80,7 @@ carmotion = phased.Platform('InitialPosition',[car_dist;0;0.0]);
 %%
 % The propagation model is assumed to be free space.
 
-channel = phased.WidebandFreeSpace('PropagationSpeed',c,...
+channel = phased.FreeSpace('PropagationSpeed',c,...
     'OperatingFrequency',fc,'SampleRate',fs,'TwoWayPropagation',true);
 
 %% Radar System Setup
@@ -121,29 +125,34 @@ for m = 1:Nsweep
     txsig = transmitter(sig);
     
     % Propagate the signal and reflect off the target
-    tgt_pos(1) = 20;% + (rand(1)/100)
+    tgt_pos = [20;0;0];% x y z position
     [radar_pos,radar_vel] = radarmotion(1);
     txsig = channel(txsig,radar_pos,tgt_pos,radar_vel,radar_vel);
  
-
     txsig = cartarget(txsig); %step(H,X,UPDATE)
     
     %Dechirp the received radar return
     txsig = receiver(txsig);    
     
 
-    %txsig = pnoise(txsig);
     dechirpsig       = dechirp(txsig,sig);
-    dechirp_Data     = vertcat(dechirp_Data,dechirpsig(4000:6000));
+   % plot(real(dechirpsig))
+    dechirp_Data     = vertcat(dechirp_Data,dechirpsig(600:1000)); %BRKPNT
     dechirp_Data2(:,step_hop) = dechirpsig;
+    
     figure(12)
     hold on
+    plot(real(dechirp_Data))
     
+    figure(2)
+    hold on
     plot(real(txsig));
     plot(real(sig));
+    figure(1)
+    hold on
     plot(real(dechirpsig));
-    I_avg(step_hop)= mean(real(dechirpsig(4000:6000)));
-    Q_avg(step_hop)= mean(imag(dechirpsig(4000:6000)));
+    I_avg(step_hop)= mean(real(dechirpsig(600:1000)));
+    Q_avg(step_hop)= mean(imag(dechirpsig(600:1000)));
     step_hop
     end
     figure(13)
@@ -155,7 +164,7 @@ for m = 1:Nsweep
     %FFT
     dechirp_Data = I_avg + 1i*Q_avg ;
     plot(real(dechirp_Data))
-    Fs = bw;              % Sampling frequency
+    Fs = fs;              % Sampling frequency
     T = 1/Fs;             % Sampling period
     L = length(dechirp_Data);             % Length of signal
     t = (0:L-1)*T;        % Time vector
@@ -167,11 +176,11 @@ for m = 1:Nsweep
     P1(2:end-1) = 2*P1(2:end-1);
 
     
-    rng = c*f/sweep_slope/2; %  RANGE PLOT IN M 
+    %rng = c*f/sweep_slope/2; %  RANGE PLOT IN M 
     figure(3)
     hold on
     %axis([0 6 -120 10])
-    plot(rng,mag2db(P1))
+    plot(f,mag2db(P1))
     title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
