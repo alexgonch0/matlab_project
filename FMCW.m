@@ -11,7 +11,7 @@ function FMCW
 %  Maximum target speed (km/h)  0
 %  Sweep time (seconds)         0.0001
          
-fc = 24e9;  % 24 Ghz Wave
+fc = 24e9;  % 24 GHz Wave
 c  = 3e8;   % Speed of light
 
 range_max_meters   = 4;        % Bottom of tank in rail car
