@@ -212,7 +212,8 @@ plot(Received_Waveform)
 
 x = step(Received_Waveform);
 
-dechirped_output = dechirp(xref, x);
+dechirped_output = dechirp(x, xref);
+
 
 figure()
 plot(real(dechirped_output))
