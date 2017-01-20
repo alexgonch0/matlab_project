@@ -1,5 +1,3 @@
-function FMCW
-
 %% General parameters
 % The following table summarizes the radar parameters.
 % 
@@ -102,43 +100,42 @@ motion_radar = phased.Platform();
 %   an image and give an intuitive indication of where the target is in the
 %   range and speed domain.
 
-        Nsweep = 4;
-        for m = 1:Nsweep
-            % Update radar and target positions
-            [radar_pos,radar_vel] = motion_radar(waveform.SweepTime);
-            [tgt_pos,tgt_vel] = motion_comm(waveform.SweepTime);
+Nsweep = 4;
+for m = 1:Nsweep
+    % Update radar and target positions
+    [radar_pos,radar_vel] = motion_radar(waveform.SweepTime);
+    [tgt_pos,tgt_vel] = motion_comm(waveform.SweepTime);
 
-            % Transmit FMCW waveform
-            sig = waveform();
-            
-            sig = phase_noise(sig);
-            
-            txsig_init = transmitter(sig);
+    % Transmit FMCW waveform
+    sig = waveform();
 
-            % Propagate the signal and reflect off the target
-            tgt_pos(1) = 2;
-            txsig = channel(txsig_init,radar_pos,tgt_pos,radar_vel,tgt_vel);
-            % UPDATE = false; %only used for Swirl1 stuff
+    sig = phase_noise(sig);
 
-            % txsig = cartarget(txsig,UPDATE); %step(H,X,UPDATE)
-            txsig = target_comm(txsig); %step(H,X,UPDATE)
+    txsig_init = transmitter(sig);
 
-            % Dechirp the received radar return
-            txsig = receiver(txsig);
-            
-            % Add circulator coupling:
-            txsig = circulator(5, txsig_init, txsig);
+    % Propagate the signal and reflect off the target
+    tgt_pos(1) = 2;
+    txsig = channel(txsig_init,radar_pos,tgt_pos,radar_vel,tgt_vel);
+    % UPDATE = false; %only used for Swirl1 stuff
 
-            dechirpsig = dechirp(txsig,sig);
+    % txsig = cartarget(txsig,UPDATE); %step(H,X,UPDATE)
+    txsig = target_comm(txsig); %step(H,X,UPDATE)
 
-            % FFT and range of object
-            FFT_range(c,fs,dechirpsig,sweep_slope)
-            
-            figure(2)
-            spectrogram(sig,32,16,32,fs,'yaxis');
-        end
+    % Dechirp the received radar return
+    txsig = receiver(txsig);
 
+    % Add circulator coupling:
+    txsig = circulator(5, txsig_init, txsig);
+
+    dechirpsig = dechirp(txsig,sig);
+
+    % FFT and range of object
+    FFT_range(c,fs,dechirpsig,sweep_slope)
+
+    figure(2)
+    spectrogram(sig,32,16,32,fs,'yaxis');
 end
+
 
 
 function FFT_range (c,Fs,IQ_data,sweep_slope)
