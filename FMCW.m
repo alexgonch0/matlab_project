@@ -43,16 +43,17 @@ title('FMCW signal spectrogram');
 %% Target Model
 c1 = 1.9768e8;
 
-car_bottom = 2;
-car_rcs = db2pow(min(10*log10(car_bottom)+5,20));
+distance_comm = 2;  % distance between the radar and commodity surface
+rcs_comm = db2pow(min(10*log10(distance_comm)+5,20));   % cross-section of the commodity under
+                                                        % the radar
 
-cartarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',car_rcs,...
+target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,...
     'PropagationSpeed',c1,'OperatingFrequency',fc);
 
 %cartarget = phased.RadarTarget('Model','Swerling2','MeanRCS',car_rcs,...
 %   'PropagationSpeed',c,'OperatingFrequency',fc);
 
-carmotion = phased.Platform();
+motion_comm = phased.Platform();
 
 %% Channel
 % The propagation model is assumed to be free space.
@@ -84,7 +85,7 @@ receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
 % km/h along x-axis. So the target car is approaching the radar at a
 % relative speed of 4 km/h.
 
-radarmotion = phased.Platform();
+motion_radar = phased.Platform();
 
 %% Radar Signal Simulation
 % # The waveform generator generates the FMCW signal.
@@ -104,8 +105,8 @@ radarmotion = phased.Platform();
         Nsweep = 4;
         for m = 1:Nsweep
             % Update radar and target positions
-            [radar_pos,radar_vel] = radarmotion(waveform.SweepTime);
-            [tgt_pos,tgt_vel] = carmotion(waveform.SweepTime);
+            [radar_pos,radar_vel] = motion_radar(waveform.SweepTime);
+            [tgt_pos,tgt_vel] = motion_comm(waveform.SweepTime);
 
             % Transmit FMCW waveform
             sig = waveform();
@@ -120,7 +121,7 @@ radarmotion = phased.Platform();
             % UPDATE = false; %only used for Swirl1 stuff
 
             % txsig = cartarget(txsig,UPDATE); %step(H,X,UPDATE)
-            txsig = cartarget(txsig); %step(H,X,UPDATE)
+            txsig = target_comm(txsig); %step(H,X,UPDATE)
 
             % Dechirp the received radar return
             txsig = receiver(txsig);
