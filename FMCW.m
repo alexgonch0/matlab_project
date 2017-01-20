@@ -110,7 +110,7 @@ radarmotion = phased.Platform();
 
 
 
-        Nsweep = 10;
+        Nsweep = 20;
         % Alex comment
         % #justcapstonethings
 
@@ -138,7 +138,7 @@ radarmotion = phased.Platform();
             txsig = receiver(txsig);
             
             %   Mix original signal with received one:
-            txsig = circulator(0.5, txsig_init, txsig);
+            txsig = circulator(5, txsig_init, txsig);
 
             dechirpsig = dechirp(txsig,sig);
 
@@ -186,5 +186,5 @@ end
 function [IQ_Data] = phase_noise(IQ_Data)
     pnoise = comm.PhaseNoise('Level',-40,'FrequencyOffset',10);
     IQ_Data = pnoise(IQ_Data);
-    IQ_Data = awgn(IQ_Data,60,'measured','db');
+    IQ_Data = awgn(IQ_Data,40,'measured','db');
 end
