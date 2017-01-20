@@ -125,7 +125,7 @@ for m = 1:Nsweep
     txsig = receiver(txsig);
 
     % Add circulator coupling:
-    txsig = circulator(5, txsig_init, txsig);
+    txsig = circulator(2, txsig_init, txsig);
 
     dechirpsig = dechirp(txsig,sig);
 
@@ -153,7 +153,7 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
     rng = c*f/sweep_slope/2; % RANGE PLOT IN M 
     figure(3)
     hold on
-    axis([0 6 -170 10])
+    axis([0 6 -100 0])
     plot(rng,mag2db(P1))
     title('Range Power Plot')
     xlabel('Range (m)')
@@ -172,7 +172,7 @@ end
 function [IQ_Data] = phase_noise(IQ_Data)
     %pnoise = comm.PhaseNoise('Level',-40,'FrequencyOffset',10);
     %IQ_Data = pnoise(IQ_Data);
-    IQ_Data = awgn(IQ_Data,40,'measured','db');
+    IQ_Data = awgn(IQ_Data,30,'measured','db');
 end
 
 function dechirped_output = mixer(Transmit_Waveform, Received_Waveform)
