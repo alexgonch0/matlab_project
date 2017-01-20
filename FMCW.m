@@ -110,7 +110,7 @@ radarmotion = phased.Platform();
 
 
 
-        Nsweep = 20;
+        Nsweep = 4;
         % Alex comment
         % #justcapstonethings
 
