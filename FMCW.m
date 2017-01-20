@@ -41,11 +41,13 @@ spectrogram(sig,32,16,32,fs,'yaxis');
 title('FMCW signal spectrogram');
 
 %% Target Model
+c1 = 1.9768e8;
+
 car_bottom = 2;
 car_rcs = db2pow(min(10*log10(car_bottom)+5,20));
 
 cartarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',car_rcs,...
-    'PropagationSpeed',c,'OperatingFrequency',fc);
+    'PropagationSpeed',c1,'OperatingFrequency',fc);
 
 %cartarget = phased.RadarTarget('Model','Swerling2','MeanRCS',car_rcs,...
 %   'PropagationSpeed',c,'OperatingFrequency',fc);
