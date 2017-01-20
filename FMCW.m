@@ -188,3 +188,40 @@ function [IQ_Data] = phase_noise(IQ_Data)
     IQ_Data = pnoise(IQ_Data);
     IQ_Data = awgn(IQ_Data,40,'measured','db');
 end
+
+function dechirped_output = Mixer(Transmit_Waveform, Received_Waveform)
+% This is a stand-alone mixer function. It's not yet complete, I'm still
+% working on it, but if you see anything that can be fixed or if you have
+% any suggestions to improve it, just let me know.
+
+% Transmit_Waveform and Received_Waveform must be FMCW Waveforms.
+
+
+%Fs = 24e9; Tm = 0.0001
+%hwav = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm);
+
+%waveform = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm,'SweepBandwidth',100.0e3,'OutputFormat','Sweeps','NumSweeps',2);
+figure()
+plot(Transmit_Waveform)
+
+xref = step(Transmit_Waveform);
+
+%waveform1 = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm, 'SweepBandwidth',150.0e3,'OutputFormat','Sweeps','NumSweeps',2);
+figure()
+plot(Received_Waveform)
+
+x = step(Received_Waveform);
+
+dechirped_output = dechirp(xref, x);
+
+figure()
+plot(real(dechirped_output))
+
+
+[Pxx,F] = periodogram(dechirped_output,[],1024,Fs,'centered');
+figure()
+plot(F/1000,10*log10(Pxx)); grid;
+xlabel('Frequency (kHz)');
+ylabel('Power/Frequency (dB/Hz)');
+title('Periodogram Power Spectral Density Estimate After Dechirping');
+end
