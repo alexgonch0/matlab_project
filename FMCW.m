@@ -125,7 +125,7 @@ for m = 1:Nsweep
     txsig = receiver(txsig);
 
     % Add circulator coupling:
-    txsig = circulator(2, txsig_init, txsig);
+    txsig = circulator(25, txsig_init, txsig);
 
     dechirpsig = dechirp(txsig,sig);
 
