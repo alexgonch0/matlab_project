@@ -1,5 +1,6 @@
 function FMCW
 
+%% General parameters
 % The following table summarizes the radar parameters.
 % 
 %  System parameters            Value
@@ -122,12 +123,12 @@ radarmotion = phased.Platform();
             % Dechirp the received radar return
             txsig = receiver(txsig);
             
-            %   Mix original signal with received one:
+            % Add circulator coupling:
             txsig = circulator(5, txsig_init, txsig);
 
             dechirpsig = dechirp(txsig,sig);
 
-            %FFT and range of object
+            % FFT and range of object
             FFT_range(c,fs,dechirpsig,sweep_slope)
             
             figure(2)
@@ -138,7 +139,7 @@ end
 
 
 function FFT_range (c,Fs,IQ_data,sweep_slope)
-    %FFT
+    % FFT
     T = 1/Fs;             % Sampling period
     L = length(IQ_data);  % Length of signal
     t = (0:L-1)*T;        % Time vector
@@ -149,7 +150,7 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
     P1 = P2(1:L/2+1);
     P1(2:end-1) = 2*P1(2:end-1);
     
-    rng = c*f/sweep_slope/2; %  RANGE PLOT IN M 
+    rng = c*f/sweep_slope/2; % RANGE PLOT IN M 
     figure(3)
     hold on
     axis([0 6 -170 10])
@@ -164,8 +165,8 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
     rng(x) % map to range array
 end
 
-function [txsig_out] = circulator(coupling_factor, initial, target)
-    txsig_out = target + coupling_factor * initial;
+function [txsig_out] = circulator(coupling_factor, tx_signal, rx_signal)
+    txsig_out = rx_signal + coupling_factor * tx_signal;
 end
 
 function [IQ_Data] = phase_noise(IQ_Data)
@@ -174,7 +175,7 @@ function [IQ_Data] = phase_noise(IQ_Data)
     IQ_Data = awgn(IQ_Data,40,'measured','db');
 end
 
-function dechirped_output = Mixer(Transmit_Waveform, Received_Waveform)
+function dechirped_output = mixer(Transmit_Waveform, Received_Waveform)
 % This is a stand-alone mixer function. It's not yet complete, I'm still
 % working on it, but if you see anything that can be fixed or if you have
 % any suggestions to improve it, just let me know.
@@ -242,7 +243,7 @@ for m = 1:Nsweep
         title('Transmitted Signal');
     end
     
-    %Dechirp the received radar return
+    % Dechirp the received radar return
     txsig = receiver(txsig);    
     dechirpsig = dechirp(txsig,sig);
     
