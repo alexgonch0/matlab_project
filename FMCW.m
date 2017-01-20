@@ -200,13 +200,13 @@ function dechirped_output = Mixer(Transmit_Waveform, Received_Waveform)
 %Fs = 24e9; Tm = 0.0001
 %hwav = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm);
 
-%waveform = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm,'SweepBandwidth',100.0e3,'OutputFormat','Sweeps','NumSweeps',2);
+%transmit_waveform = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm,'SweepBandwidth',100.0e3,'OutputFormat','Sweeps','NumSweeps',2);
 figure()
 plot(Transmit_Waveform)
 
 xref = step(Transmit_Waveform);
 
-%waveform1 = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm, 'SweepBandwidth',150.0e3,'OutputFormat','Sweeps','NumSweeps',2);
+%received_waveform = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm, 'SweepBandwidth',150.0e3,'OutputFormat','Sweeps','NumSweeps',2);
 figure()
 plot(Received_Waveform)
 
