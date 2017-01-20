@@ -210,7 +210,30 @@ end
     sinewave = vertcat(sinewave,wave(:,step_hop));
     end
     spectrogram(sinewave,32,16,32,fs,'yaxis');
+    
+    
 %% END EDS CODE %%
 
+  sig =  wave(:,1);
+  Fs = fs;              % Sampling frequency
+     T = 1/Fs;             % Sampling period
+    L = length(sig);             % Length of signal
+    t = (0:L-1)*T;        % Time vector
+    window = hann(L);
+    Y = ifft(sig);
+    f = Fs*(0:(L/2))/L;
+    P2 = abs(Y/L);
+    P1 = P2(1:L/2+1);
+    P1(2:end-1) = 2*P1(2:end-1);
+
+    
+    %rng = c*f/sweep_slope/2; %  RANGE PLOT IN M 
+    figure(3)
+    hold on
+    %axis([0 6 -120 10])
+    plot(f,mag2db(P1))
+    title('Range Power Plot')
+    xlabel('Range (m)')
+    ylabel('|P1 db(m)|')
 
 
