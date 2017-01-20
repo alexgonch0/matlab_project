@@ -214,6 +214,7 @@ x = step(Received_Waveform);
 
 dechirped_output = dechirp(x, xref);
 
+phase_noise(dechirped_output);
 
 figure()
 plot(real(dechirped_output))
@@ -222,6 +223,66 @@ plot(real(dechirped_output))
 [Pxx,F] = periodogram(dechirped_output,[],1024,Fs,'centered');
 figure()
 plot(F/1000,10*log10(Pxx)); grid;
+xlabel('Frequency (kHz)');
+ylabel('Power/Frequency (dB/Hz)');
+title('Periodogram Power Spectral Density Estimate After Dechirping');
+end
+
+function for_loop_mixer()
+for m = 1:Nsweep
+    % Update radar and target positions
+    [radar_pos,radar_vel] = radarmotion(waveform.SweepTime);
+    [tgt_pos,tgt_vel] = carmotion(waveform.SweepTime);
+
+    % Transmit FMCW waveform
+    sig = waveform();
+    pnoise = comm.PhaseNoise('Level',-60,'FrequencyOffset',20);
+    txsig = transmitter(sig);
+    
+    % Propagate the signal and reflect off the target
+    txsig = channel(txsig,radar_pos,tgt_pos,radar_vel,tgt_vel);
+    txsig = cartarget(txsig);
+    
+    if m == 4
+        figure();
+        plot(real(txsig));
+        xlabel('Amplitude (v)');
+        ylabel('Time (ms)');
+        title('Received Signal');
+    
+        figure();
+        plot(real(sig));
+        xlabel('Amplitude (v)');
+        ylabel('Time (ms)');
+        title('Transmitted Signal');
+    end
+    
+    %Dechirp the received radar return
+    txsig = receiver(txsig);    
+    dechirpsig = dechirp(txsig,sig);
+    
+    pnoise = comm.PhaseNoise('Level',-60,'FrequencyOffset',20);
+    pnoise(dechirpsig)
+    
+    if Nsweep == 4
+        figure();
+        plot(real(dechirpsig));
+        xlabel('Amplitude (v)');
+        ylabel('Time (ms)');
+        title('Mixed Signal');
+    end
+     
+    % Visualize the spectrum
+    specanalyzer([txsig dechirpsig]);
+    
+    xr(:,m) = dechirpsig;
+    
+end 
+
+figure()
+hold on
+[Pyy,F] = periodogram(dechirpsig,[],2048,Fs,'centered');
+plot(F/1000,10*log10(Pyy));
 xlabel('Frequency (kHz)');
 ylabel('Power/Frequency (dB/Hz)');
 title('Periodogram Power Spectral Density Estimate After Dechirping');
