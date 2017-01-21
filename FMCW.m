@@ -123,7 +123,7 @@ for m = 1:Nsweep
 
     % Add circulator coupling
     % Probably should actually be here -- Alex
-    txsig = circulator(1, txsig_init, txsig);
+    txsig = circulator(0.25, txsig_init, txsig);
     
     % Dechirp the received radar return
     txsig = receiver(txsig);
