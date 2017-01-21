@@ -121,11 +121,12 @@ for m = 1:Nsweep
     % txsig = cartarget(txsig,UPDATE); %step(H,X,UPDATE)
     txsig = target_comm(txsig); %step(H,X,UPDATE)
 
+    % Add circulator coupling
+    % Probably should actually be here -- Alex
+    txsig = circulator(1, txsig_init, txsig);
+    
     % Dechirp the received radar return
     txsig = receiver(txsig);
-
-    % Add circulator coupling:
-    txsig = circulator(25, txsig_init, txsig);
 
     dechirpsig = dechirp(txsig,sig);
 
