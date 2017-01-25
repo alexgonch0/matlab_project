@@ -1,61 +1,46 @@
 
-
-fc = 24e9; % 24 Ghz Wave
-c = 3e8;   %Speed of light
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% User Entry Here
+fc = 24e9;      % 24 Ghz Wave
+c = 3e8;        %Speed of light
 lambda = c/fc;  %wavelength
+Nsweep = 1;     %Perform N sweeps of the radar and overlap the plots
 
-%%
-% The sweep time can be computed based on the time needed for the signal to
-% travel the unambiguous maximum range. In general, for an FMCW radar
-% system, the sweep time should be at least 5 to 6 times the round trip
-% time. This example uses a factor of 5.5.
+BW = 2e9        %2Ghz BW
+Fc = 4e6        %Minimum Freq ex 2Mhz so we have 1000 steps
 
-range_max = 4;
-%tm = 5*range2time(range_max,c);
-tm = 0.00001; %Use sweep of 1ms
-%%
-% The sweep bandwidth can be determined according to the range resolution
-% and the sweep slope is calculated using both sweep bandwidth and sweep
-% time.
+Phase_NoiseAndOffset    = [-80,100e3] %Noise and Offset 
+SystemWhite_Noise       = [-60]       %Iq Noise floor (not yet used)
+Circulator_Issolation   = [-20];      %-20dB issolation 
 
+car_dist = 2;                         %Distance to crude_oil                        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-smshop = 10%samples per hop 
-BW = 2e9
-Fc = 1e7
+FreqSteps = BW/Fc 
 fs  = BW*2;
-
-FreqSteps = BW/Fc
-L = length(linspace(0,smshop/Fc,1001));
+smshop = 100%samples per hop 
+L = length(linspace(0,smshop/Fc,10001));
 wave = zeros(L,FreqSteps);
 figure(1)
+
+pnoise = comm.PhaseNoise('Level',[-80],'FrequencyOffset',[100e3], ...
+    'SampleRate',2*100e3);
+
 for steps = 1:FreqSteps
-   t = [0:1:1000];
+   t = [0:1:10000];
    I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
    Q  = sin(((2*pi*(Fc*steps/(2*BW)*t))));
    Z  = I - 1i*Q;
    %wave = vertcat(wave,Z');
-   wave(:,steps) = Z';
+   Z_Phase = phase_noise(Z',Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
+   wave(:,steps) = Z_Phase;
+   %wave(:,steps) = Z';
    %plot(I)
    %Frq = Fc*steps;
    steps
-   plot(real(wave(:,steps)));
+   %plot(real(wave(:,steps)));
 end
-t = [0:1:1000];
-%I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
-%plot(t*1/BW*1000,I);
 
-%wind  = hann(length(wave))';
-%wave = wave.*wind';
-%spectrogram(wave,32,16,32,2e3,'yaxis');
-%plot(real(wave))
-
-%plot(t,I)
-%hold on
-%plot(t,Q)
-
-
-
-sig = wave;
 
 
 %% Target Model
@@ -66,7 +51,6 @@ sig = wave;
 % The radar cross section of a car, according to [1], can be computed based
 % on the distance between the radar and the target car.
 
-car_dist = 2;
 car_rcs = db2pow(min(10*log10(car_dist)+5,20));
 
 cartarget = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',car_rcs,'PropagationSpeed',c,...
@@ -80,7 +64,7 @@ carmotion = phased.Platform('InitialPosition',[car_dist;0;0.0]);
 %%
 % The propagation model is assumed to be free space.
 
-channel = phased.FreeSpace('PropagationSpeed',c,...
+channel = phased.WidebandFreeSpace('PropagationSpeed',c,...
     'OperatingFrequency',fc,'SampleRate',fs,'TwoWayPropagation',true);
 
 %% Radar System Setup
@@ -105,135 +89,134 @@ rx_nf = 4.5;                                    % in dB
 transmitter = phased.Transmitter('PeakPower',tx_ppower,'Gain',tx_gain);
 receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
     'SampleRate',fs);
-
-
 radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
 
-%rng(2012);
-Nsweep = 4;
-%xr = complex(zeros(waveform.SampleRate*waveform.SweepTime,Nsweep));
+%% Actual Sweep
+
+sig = combineSteps(wave,FreqSteps);
+plotSweepSpectrum(sig,fs);
+
+tgt_pos = [1;0;0];% x y z position
 
 for m = 1:Nsweep
-
-    dechirp_Data = [];
-    dechirp_Data2 = [];
-
-    for step_hop = 1:steps
-        
-    sig =  wave(:,step_hop);
-    txsig = transmitter(sig);
+    disp('Sweeping')
     
-    % Propagate the signal and reflect off the target
-    tgt_pos = [20;0;0];% x y z position
+    %% Setup the TX signal
+    txsig =  transmitter(sig);
+    
+    %% Propagate the signal and reflect off the target
+
     [radar_pos,radar_vel] = radarmotion(1);
     txsig = channel(txsig,radar_pos,tgt_pos,radar_vel,radar_vel);
  
     txsig = cartarget(txsig); %step(H,X,UPDATE)
     
-    %Dechirp the received radar return
+    %% Dechirp the received radar return
     txsig = receiver(txsig);    
     
-
+    txsig = circulator(Circulator_Issolation,sig,txsig);
     dechirpsig       = dechirp(txsig,sig);
-   % plot(real(dechirpsig))
-    dechirp_Data     = vertcat(dechirp_Data,dechirpsig(600:1000)); %BRKPNT
-    dechirp_Data2(:,step_hop) = dechirpsig;
-    
-    figure(12)
-    hold on
-    plot(real(dechirp_Data))
-    
-    figure(2)
-    hold on
-    plot(real(txsig));
-    plot(real(sig));
-    figure(1)
-    hold on
-    plot(real(dechirpsig));
-    I_avg(step_hop)= mean(real(dechirpsig(600:1000)));
-    Q_avg(step_hop)= mean(imag(dechirpsig(600:1000)));
-    step_hop
-    end
-    figure(13)
-    plot(I_avg)
-    hold on
-    plot(Q_avg)
-    
-    %dechirpsig = decimate(dechirpsig,10000);
-    %FFT
-    dechirp_Data = I_avg + 1i*Q_avg ;
-    plot(real(dechirp_Data))
-    Fs = fs;              % Sampling frequency
-    T = 1/Fs;             % Sampling period
-    L = length(dechirp_Data);             % Length of signal
-    t = (0:L-1)*T;        % Time vector
-    window = hann(L)';
-    Y = ifft(dechirp_Data.*window);
-    f = Fs*(0:(L/2))/L;
-    P2 = abs(Y/L);
-    P1 = P2(1:L/2+1);
-    P1(2:end-1) = 2*P1(2:end-1);
+    dechirpsig       = IQ_filter(dechirpsig); %Fillter the data through a LPF
+ 
+    FFT_range(c,fs,dechirpsig,0)
+   
 
-    
-    %rng = c*f/sweep_slope/2; %  RANGE PLOT IN M 
-    figure(3)
-    hold on
-    %axis([0 6 -120 10])
-    plot(f,mag2db(P1))
-    title('Range Power Plot')
-    xlabel('Range (m)')
-    ylabel('|P1 db(m)|')
-    rng = c*f/sweep_slope/2; %  beat2range(f,sweep_slope,c)
-     
-    % Visualize the spectrum
-    %specanalyzer([txsig dechirpsig]);
-    
-    %xr(:,m) = dechirpsig;
-    
-%Est Range
-[y,x] = max(mag2db(P1)) % find peak FFT point
-rng(x) % map to range array
-
-figure(5)
-hold on
-[Pyy,F] = periodogram(dechirpsig,[],2048,Fs,'centered');
-%plot(F/1000,10*log10(Pyy));
-xlabel('Frequency (kHz)');
-ylabel('Power/Frequency (dB/Hz)');
-title('Periodogram Power Spectral Density Estimate After Dechirping');
 end
-    figure(20)
-    hold on
-    sinewave = []
-    for step_hop = 1:steps
-    sinewave = vertcat(sinewave,wave(:,step_hop));
-    end
-    spectrogram(sinewave,32,16,32,fs,'yaxis');
     
-    
-%% END EDS CODE %%
+ clear;
 
-  sig =  wave(:,1);
-  Fs = fs;              % Sampling frequency
-     T = 1/Fs;             % Sampling period
-    L = length(sig);             % Length of signal
+ 
+    %% FilterDesigner LPF for filter IQ jumps
+
+ function [filtered_data] = IQ_filter(IQ_data)
+% All frequency values are in Hz.
+Fs = 4000000000;  % Sampling Frequency
+
+N  = 25;      % Order
+Fc = 350000;  % Cutoff Frequency
+
+% Construct an FDESIGN object and call its BUTTER method.
+h  = fdesign.lowpass('N,F3dB', N, Fc, Fs);
+Hd = design(h, 'butter');
+output = filter(Hd,IQ_data);
+filtered_data = output;
+figure(4)
+hold on
+%plot(real(IQ_data))
+%plot(real(output))
+%plot(imag(output))
+end
+
+
+ 
+ function FFT_range (c,Fs,IQ_data,sweep_slope)
+    %FFT
+    IQ_data = decimate(IQ_data,1000);
+    Fs = Fs/1000;
+    T = 1/Fs;             % Sampling period
+    L = length(IQ_data);  % Length of signal
     t = (0:L-1)*T;        % Time vector
     window = hann(L);
-    Y = ifft(sig);
-    f = Fs*(0:(L/2))/L;
+    Y = fft(IQ_data.*window);
     P2 = abs(Y/L);
-    P1 = P2(1:L/2+1);
+    P1 = P2(1:floor((L/2+1)));
     P1(2:end-1) = 2*P1(2:end-1);
 
-    
-    %rng = c*f/sweep_slope/2; %  RANGE PLOT IN M 
+    L = length(IQ_data);  % Length of signal
+    f = Fs*(0:(L/2))/L;
+    deltaR = c ./ (2*f*1000);
+    deltaR = linspace(0,99,L/2+1);  %  37.5m
+    deltaR = deltaR ./2;
+
     figure(3)
     hold on
-    %axis([0 6 -120 10])
-    plot(f,mag2db(P1))
-    title('Range Power Plot')
+    axis([0 10 -120 0])
+    %axis([0 6e5 -160 10])
+    plot(deltaR,mag2db(P1))
+    %title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
+ 
+    %Est Range
+    [y,x] = max(mag2db(P1)); % find peak FFT point
+    rng(x); % map to range array
+ end
+
+
+ function [combined] = combineSteps(wave,steps)
+ disp('Combining Waveforms(this may take a bit)')
+ wholesig = [] ;  
+     for count = 1:steps
+     sig =  wave(:,count);
+     wholesig = vertcat(wholesig,sig);
+     end
+combined = wholesig;
+ end
+ 
+ 
+ function plotSweepSpectrum(data,fs)
+  spectrogram(data,32,16,32,fs,'yaxis');
+ end
+  
+ function [res] = range_resolution(c,steps,BW,fs)
+ L = length(dechirpsig);  % Length of signal
+ f = fs*(0:(L/2))/L;
+ deltaR = c ./ (2*f);
+ end
+
+ function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
+ pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
+     'SampleRate',2*Offset);
+ IQ_Data_noise = pnoise(IQ_Data);
+ WhiteNoise    = awgn(IQ_Data_noise,1,.01);
+ IQ_Data_noise = WhiteNoise;
+ end
+
+ function [txsig_out] = circulator(coupling_factor, initial, target)
+    coupling_factor = 10^(coupling_factor/10);
+    txsig_out = target + coupling_factor * initial;
+ end
+
 
 
