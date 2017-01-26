@@ -58,7 +58,7 @@ steps
 
 %% Target Model
 rcs_comm  = db2pow(min(10*log10(distance_comm)+5,20)); %RCS
-c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); %Speed of light calculation
+c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); %Propagation speed calculation
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c1,...
     'OperatingFrequency',fc);
 
