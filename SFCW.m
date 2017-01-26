@@ -9,14 +9,14 @@ lambda = c/fc;  %wavelength
 Nsweep = 1;     %Perform N sweeps of the radar and overlap the plots
 
 BW = 2e9        %2Ghz BW
-Fc = 1e6        %Minimum Freq ex 2Mhz so we hvae 1000 steps
+Fc = 4e6        %Minimum Freq ex 2Mhz so we hvae 1000 steps
 
 Phase_NoiseAndOffset    = [-80,100e3] %Noise and Offset 
 SystemWhite_Noise       = [-60]       %Iq Noise floor
 Circulator_Issolation   = [-20];      %-20dB issolation
 
-distance_comm   = 2;    % (m) distance between the radar and commodity surface
-tot_sweep_time  = 2e-3  % (s) long sweep times create large signal arrays (slow)
+distance_comm   = 4;    % (m) distance between the radar and commodity surface
+tot_sweep_time  = 1e-3  % (s) long sweep times create large signal arrays (slow)
 comm_perm       = 2.3;  % (e) Commodity permitivity
 
 %  End User Entry                     
@@ -35,7 +35,6 @@ FreqSteps = BW/Fc
 fs  = BW*2;
 tot_points = fs*tot_sweep_time
 points_per_step = tot_points/FreqSteps
-%L = length(linspace(0,smshop/Fc,10000+1));
 L = points_per_step;
 wave = zeros(L,FreqSteps);
 figure(1)
@@ -58,23 +57,14 @@ steps
 
 
 %% Target Model
-% The target of an ACC radar is usually a car in front of it. This example
-% assumes the target car is moving 50 m ahead of the car with the
-% radar, at a speed of 96 km/h along the x-axis. 
-%
-% The radar cross section of a car, according to [1], can be computed based
-% on the distance between the radar and the target car.
-rcs_comm  = db2pow(min(10*log10(distance_comm)+5,20));
-
+rcs_comm  = db2pow(min(10*log10(distance_comm)+5,20)); %RCS
 c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); %Speed of light calculation
-
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c1,...
     'OperatingFrequency',fc);
 
 %target_comm = phased.RadarTarget('Model','Swerling2','MeanRCS',car_rcs,'PropagationSpeed',c,...
 %   'OperatingFrequency',fc);
 
-carmotion = phased.Platform('InitialPosition',[distance_comm;0;0]);
 
 %%
 % The propagation model is assumed to be free space.
