@@ -176,7 +176,8 @@ end
     
     dR = sweeptime*(speedOfLight/2);
     dR = dR/L;
-    deltaR = linspace(dR,dR*L,L/2+1); 
+    deltaR = linspace(dR,dR*L,L/2+1); %frequency to range conversion
+    deltaR = deltaR - (deltaR(1)); %fixes distance offset - 0Hz = 0m
     
     figure(3)
     hold on
