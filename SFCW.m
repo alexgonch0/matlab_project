@@ -10,13 +10,13 @@ Nsweep = 1;     %Perform N sweeps of the radar and overlap the plots
 
 BW = 2e9        %2Ghz BW
 Fc = 4e6        %Minimum Freq ex 2Mhz so we hvae 1000 steps
+tot_sweep_time  = 1e-3  % (s) long sweep times create large signal arrays (slow)
 
 Phase_NoiseAndOffset    = [-80,100e3] %Noise and Offset 
 SystemWhite_Noise       = [-60]       %Iq Noise floor
 Circulator_Issolation   = [-20];      %-20dB issolation
 
-distance_comm   = 4;    % (m) distance between the radar and commodity surface
-tot_sweep_time  = 1e-3  % (s) long sweep times create large signal arrays (slow)
+distance_comm   = 2;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;  % (e) Commodity permitivity
 
 %  End User Entry                     
@@ -58,11 +58,11 @@ steps
 
 %% Target Model
 rcs_comm  = db2pow(min(10*log10(distance_comm)+5,20)); %RCS
-c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); %Propagation speed calculation
+c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); %Speed of light calculation
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c1,...
     'OperatingFrequency',fc);
 
-%target_comm = phased.RadarTarget('Model','Swerling2','MeanRCS',rcs_comm,'PropagationSpeed',c1,...
+%target_comm = phased.RadarTarget('Model','Swerling2','MeanRCS',car_rcs,'PropagationSpeed',c,...
 %   'OperatingFrequency',fc);
 
 
@@ -127,7 +127,7 @@ for m = 1:Nsweep
     dechirpsig       = IQ_filter(dechirpsig); %Fillter the data through a LPF
 
     %% Plot FFT
-    FFT_range(c,fs,dechirpsig,FreqSteps,BW)
+    FFT_range(c,fs,dechirpsig,FreqSteps,BW,tot_sweep_time)
    
 
 end
@@ -158,7 +158,7 @@ end
 
 
  %% FFT Plotting and range
- function FFT_range (speedOfLight,Fs,IQ_data,steps,BW)
+ function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime)
     %FFT
     %IQ_data = decimate(IQ_data,1000);
     %Fs = Fs/1000;
@@ -173,11 +173,10 @@ end
 
     L = length(IQ_data);  % Length of signal
     f = Fs*(0:(L/2))/L;
-   
-    dR = speedOfLight/(2*steps*(BW/steps));
+    
+    dR = sweeptime*(speedOfLight/2);
     dR = dR/L;
-    deltaR = linspace(dR,dR*steps*L,L/2+1); 
-    deltaR = (deltaR.*8000);
+    deltaR = linspace(dR,dR*L,L/2+1); 
     
     figure(3)
     hold on
@@ -194,7 +193,7 @@ end
 
  %% Combining the steps in the waveform
  function [combined] = combineSteps(wave,steps)
- disp('Combining Waveforms(this may take a bit)')
+ disp('Combineing Waveforms(this may take a bit)')
  wholesig = [] ;  
      for count = 1:steps
      sig =  wave(:,count);
