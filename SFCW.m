@@ -194,7 +194,7 @@ end
 
  %% Combining the steps in the waveform
  function [combined] = combineSteps(wave,steps)
- disp('Combineing Waveforms(this may take a bit)')
+ disp('Combining Waveforms(this may take a bit)')
  wholesig = [] ;  
      for count = 1:steps
      sig =  wave(:,count);
