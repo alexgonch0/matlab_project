@@ -14,8 +14,8 @@ Fc = 4e6;        %Minimum frequency which dictates the number of steps ex 2Mhz s
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
 Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
-SystemWhite_Noise       = [-60];       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Issolation   = [-30];       %Issolation in TX RX circulator coupling
+SystemWhite_Noise       = -60;       %Iq Noise floor NOT USED IN THIS VERSION
+Circulator_Issolation   = -30;       %Issolation in TX RX circulator coupling
 
 distance_comm   = 1.5;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
@@ -174,7 +174,7 @@ end
     
     figure(3)
     hold on
-    axis([0 10 -100 0])
+    axis([0 10 -100 10])
     plot(deltaR,mag2db(P1))
     title('Range Power Plot')
     xlabel('Range (m)')
