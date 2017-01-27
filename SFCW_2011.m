@@ -9,11 +9,10 @@ function SFCW_2011
 % # The received signal is dechirped and saved in a buffer.
 % # The signal is LPF filltered to remove the IQ squarewave jumps in the FFT.
 % # FFT and range plotted 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 %% User Entry Here
-
-
 fc = 24e9;       %24 Ghz is the system operating frequency
 c  = 3e8;        %Speed of light 
 Nsweep = 1;      %Number of sweep for the radar to perform with the radar (overlap the plots)
@@ -43,6 +42,7 @@ comm_perm       = 2.3;    % (e) Commodity permitivity
 
 
 %% Start Sweep Code here:
+
 lambda = c/fc;          %wavelength
 FreqSteps = BW/Fc;       %calculate number of steps
 fs  = BW*2;             %Samplign frequency at 4Ghz
@@ -104,9 +104,9 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
 
 
-
 sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one wavefform
 
+%% Sweep:
 
         for m = 1:Nsweep
             
