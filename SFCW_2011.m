@@ -214,7 +214,7 @@ combined = wholesig;
  
  %% Plotting Spectrogram
  function plotSweepSpectrum(data,fs)
- figure(1)
+ figure(2)
  spectrogram(data,32,16,32,fs,'yaxis');
  title('SFCW Signal Spectrogram/Sweep-time');
  end
