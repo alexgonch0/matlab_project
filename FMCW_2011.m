@@ -1,4 +1,3 @@
-
 function FMCW_2011
 %% FMCW Radar Signal Simulation
 % # The waveform generator generates the FMCW signal.
@@ -23,7 +22,7 @@ range_res_meters   = 0.05;    % 5 cm resolution
 
 Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
 SystemWhite_Noise       = -60;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Issolation   = -30;       %Issolation in TX RX circulator coupling
+Circulator_Issolation   = -20;       %Issolation in TX RX circulator coupling
 
 distance_comm   = 1.5;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
@@ -143,7 +142,7 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
     rng = c*f/sweep_slope/2; % RANGE PLOT IN M 
     figure(3)
     hold on
-    axis([0 10 -100 10])
+    axis([0 20 -100 10])
     plot(rng,mag2db(P1))
     title('Range Power Plot')
     xlabel('Range (m)')
