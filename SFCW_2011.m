@@ -1,4 +1,4 @@
-function SFCW
+function SFCW_2011
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% User Entry Here
 
@@ -15,7 +15,7 @@ tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow
 
 Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
 SystemWhite_Noise       = [-60];       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Issolation   = [-30];      %Issolation in TX RX circulator coupling
+Circulator_Issolation   = [-30];       %Issolation in TX RX circulator coupling
 
 distance_comm   = 1.5;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
