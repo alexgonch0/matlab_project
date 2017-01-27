@@ -9,9 +9,9 @@ function FMCW_2011
 % # The receiving antenna collects the signal.
 % # The received signal is dechirped and saved in a buffer.
 % # FFT of beat freq and range plotted 
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 %% User Entry Here
 fc = 24e9;       %24 Ghz is the system operating frequency
 c = 3e8;         %Speed of light 
@@ -87,7 +87,7 @@ receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
     'SampleRate',fs);
 radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
-
+%% Sweep:
 
         for m = 1:Nsweep
             %% Propagate the signal and reflect off the target
@@ -178,7 +178,8 @@ end
  spectrogram(data,32,16,32,fs,'yaxis');
  title('FMCW Signal Spectrogram/Sweep-time');
  end
-  
+ 
+ %% Not Yet Used
 function dechirped_output = mixer(Transmit_Waveform, Received_Waveform)
 % This is a stand-alone mixer function. It's not yet complete, I'm still
 % working on it, but if you see anything that can be fixed or if you have
