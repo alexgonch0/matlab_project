@@ -1,4 +1,15 @@
 function SFCW_2011
+%% SFCW Radar Signal Simulation
+% # The waveform generator combines the SFCW steps
+% # The transmitter and the antenna amplify the signal and radiate the
+%   signal into space.
+% # The signal propagates to the target, gets reflected by the target, and
+%   travels back to the radar.
+% # The receiving antenna collects the signal.
+% # The received signal is dechirped and saved in a buffer.
+% # The signal is LPF filltered to remove the IQ squarewave jumps in the FFT.
+% # FFT and range plotted 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% User Entry Here
 
@@ -31,7 +42,7 @@ comm_perm       = 2.3;    % (e) Commodity permitivity
 
 
 
-%% Begin Test Code
+%% Start Sweep Code here:
 lambda = c/fc;          %wavelength
 FreqSteps = BW/Fc;       %calculate number of steps
 fs  = BW*2;             %Samplign frequency at 4Ghz
@@ -92,7 +103,8 @@ receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
 radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
 
-%% Actual Sweep
+
+
 sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one wavefform
 
 
