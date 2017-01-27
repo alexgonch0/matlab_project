@@ -4,7 +4,7 @@ function SFCW_2011
 
 
 fc = 24e9;       %24 Ghz is the system operating frequency
-c = 3e8;         %Speed of light 
+c  = 3e8;        %Speed of light 
 Nsweep = 1;      %Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        %System Bandwidth (higer bandwidth provide better resolution for target range
@@ -97,6 +97,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
 
 
         for m = 1:Nsweep
+            
         %% Add any phase noise
         sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
         plotSweepSpectrum(sig,fs); %Plot the Spectrogram
@@ -104,21 +105,23 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
         Nsweep
 
         %% Setup the TX signal
-         txsig = step(transmitter,sig);
+        txsig = step(transmitter,sig);
 
         %% Propagate the signal and reflect off the target
         [radar_pos,radar_vel] = step(radarmotion,(1));
-
         txsig = step(channel,txsig,radar_pos,tgt_pos,radar_vel,radar_vel);
+        txsig = step(target_comm,txsig); 
+        
+        
+        %% Add Coupling, dechirp and LPF
+        txsig = circulator(Circulator_Issolation,sig,txsig);
+        
 
-        txsig = step(target_comm,txsig); %step(H,X,UPDATE)
-
-        %% Dechirp the received radar return
+        %% Received radar return
         txsig = step(receiver,txsig);
 
 
-        %% Add Coupling, dechirp and LPF
-        txsig = circulator(Circulator_Issolation,sig,txsig);
+        %% Dechirp and LPF
         dechirpsig       = dechirp(txsig,sig);
         dechirpsig       = IQ_filter(dechirpsig); %Fillter the data through a LPF
 
@@ -179,7 +182,7 @@ end
     title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
-    title('FFT Object Range and Magnitude');
+    title('SFCW FFT Object Range and Magnitude');
     %Est Range
     [y,x] = max(mag2db(P1)); % find peak FFT point
     disp('Distance of object based on FFT (m):')
