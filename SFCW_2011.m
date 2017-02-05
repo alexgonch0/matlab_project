@@ -126,7 +126,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
         
         
         %% Add Coupling, dechirp and LPF
-        txsig = circulator(Circulator_Issolation,sig,txsig);
+        txsig = circulator(Circulator_Isolation,sig,txsig);
         
 
         %% Received radar return
@@ -229,9 +229,9 @@ combined = wholesig;
  end
 
  %% Adding Circulator Coupling
- function [txsig_out] = circulator(coupling_factor, initial, target)
-    coupling_factor = 10^(coupling_factor/10);	
-    txsig_out = target + coupling_factor * initial;
+ function [txsig_out] = circulator(isolation, initial, target)
+    isolation = 10^(isolation/10);	
+    txsig_out = target + isolation * initial;
  end
 
 
