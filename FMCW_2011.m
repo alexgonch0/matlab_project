@@ -20,11 +20,11 @@ range_max_meters   = 4;       % Bottom of tank in rail car
 tot_sweep_time     = 1e-3;    % Use sweep of 1ms (long sweeps create large arrays at high range resolution
 range_res_meters   = 0.05;    % 5 cm resolution
 
-PhaseNoiseLevel         = [-103, -200];  % Phase Noise levels in dBc/Hz
-                                         %%% Try yourself [-101, -200] and [-105, -200]
-PhaseNoiseOffset        = [24e9, 96e9];  % Phase Noise frequency offsets in Hz
-SystemWhite_Noise       = -60;           % IQ Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation    = -20;           % Isolation in TX RX circulator coupling
+PhaseNoiseLevel         = [-93, -120];  % Phase Noise levels in dBc/Hz
+                                        %%% Try yourself [-91, -120] and [-95, -120]
+PhaseNoiseOffset        = [2e9,  8e9];  % Phase Noise frequency offsets in Hz
+SystemWhite_Noise       = -60;          % IQ Noise floor NOT USED IN THIS VERSION
+Circulator_Isolation    = -20;          % Isolation in TX RX circulator coupling
 
 distance_comm   = 1.5;        % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;        % (e) Commodity permitivity
