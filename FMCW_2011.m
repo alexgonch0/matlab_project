@@ -11,23 +11,22 @@ function FMCW_2011
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%% User Entry Here
-fc = 24e9;       %24 Ghz is the system operating frequency
-c = 3e8;         %Speed of light 
+%% User Entry Section
+fc = 24e9;                    % 24 Ghz is the system operating frequency
+c = 3e8;                      % Speed of light 
 Nsweep = 1;
 
 range_max_meters   = 4;       % Bottom of tank in rail car
 tot_sweep_time     = 1e-3;    % Use sweep of 1ms (long sweeps create large arrays at high range resolution
 range_res_meters   = 0.05;    % 5 cm resolution
 
-Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
-SystemWhite_Noise       = -60;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation    = -20;       %Issolation in TX RX circulator coupling
+Phase_NoiseAndOffset    = [-80,100e3]; % Noise and Offset 
+SystemWhite_Noise       = -60;         % Iq Noise floor NOT USED IN THIS VERSION
+Circulator_Isolation    = -20;         % Isolation in TX RX circulator coupling
 
-distance_comm   = 1.5;    % (m) distance between the radar and commodity surface
-comm_perm       = 2.3;    % (e) Commodity permitivity
-%  End User Entry                     
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+distance_comm   = 1.5;        % (m) distance between the radar and commodity surface
+comm_perm       = 2.3;        % (e) Commodity permitivity
+%  End of User Entry
 
 
 
@@ -54,7 +53,7 @@ sig = step(waveform);
 
 
 %% Target Model
-c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm));  %Propagation speed calculation
+c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm));  % propagation speed calculation
 rcs_comm = db2pow(min(10*log10(distance_comm)+5,20));   % cross-section of the commodity under the radar
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,...
     'PropagationSpeed',c1,'OperatingFrequency',fc);
