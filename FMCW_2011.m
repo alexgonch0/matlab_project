@@ -20,9 +20,11 @@ range_max_meters   = 4;       % Bottom of tank in rail car
 tot_sweep_time     = 1e-3;    % Use sweep of 1ms (long sweeps create large arrays at high range resolution
 range_res_meters   = 0.05;    % 5 cm resolution
 
-Phase_NoiseAndOffset    = [-80,100e3]; % Noise and Offset 
-SystemWhite_Noise       = -60;         % Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation    = -20;         % Isolation in TX RX circulator coupling
+PhaseNoiseLevel         = [-103, -200];  % Phase Noise levels in dBc/Hz
+                                         %%% Try yourself [-101, -200] and [-105, -200]
+PhaseNoiseOffset        = [24e9, 96e9];  % Phase Noise frequency offsets in Hz
+SystemWhite_Noise       = -60;           % IQ Noise floor NOT USED IN THIS VERSION
+Circulator_Isolation    = -20;           % Isolation in TX RX circulator coupling
 
 distance_comm   = 1.5;        % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;        % (e) Commodity permitivity
@@ -92,7 +94,7 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
             [radar_pos,radar_vel] = step(radarmotion,(1));
             
             %% Add any phase noise
-            sig = phase_noise(sig,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
+            sig = phase_noise(sig,PhaseNoiseLevel,PhaseNoiseOffset);
             plotSweepSpectrum(sig,fs); %Plot the Spectrogram
             disp('Sweeping')
             Nsweep
@@ -162,9 +164,9 @@ end
 
 
  %% Adding IQ phasenoise
- function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
- pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
-     'SampleRate',2*Offset);
+ function [IQ_Data_noise] = phase_noise(IQ_Data,Level,Offset)
+ pnoise = comm.PhaseNoise('Level',Level,'FrequencyOffset',Offset,...
+          'SampleRate', 4*Offset(2));
  IQ_Data_noise = step(pnoise,IQ_Data);
  WhiteNoise    = awgn(IQ_Data_noise,1,.01);
  IQ_Data_noise = WhiteNoise;
