@@ -22,7 +22,7 @@ range_res_meters   = 0.05;    % 5 cm resolution
 
 Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
 SystemWhite_Noise       = -60;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Issolation   = -20;       %Issolation in TX RX circulator coupling
+Circulator_Isolation    = -20;       %Issolation in TX RX circulator coupling
 
 distance_comm   = 1.5;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
