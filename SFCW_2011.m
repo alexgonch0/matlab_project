@@ -15,20 +15,20 @@ function SFCW_2011
 %% User Entry Here
 fc = 24e9;       %24 Ghz is the system operating frequency
 c  = 3e8;        %Speed of light 
-Nsweep = 10;      %Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 1;      %Number of sweep for the radar to perform with the radar (overlap the plots)
 
-BW = 2e9;        %System Bandwidth (higer bandwidth provide better resolution for target range
-Fc = 2e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
-                    %which also increases the range resolution 
+BW = 2e9;        %2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
+Fc = 1e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
+                 %which also increases the range resolution 
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
-Phase_NoiseAndOffset    = [-65,100e3]; %Noise and Offset 
+Phase_NoiseAndOffset    = [-90,100e3]; %Noise and Offset 
 SystemWhite_Noise       = -58;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation    = -20;       %Issolation in TX RX circulator coupling
+Circulator_Isolation    = -80;       %Issolation in TX RX circulator coupling
 
 distance_comm   = 2.5;    % (m) distance between the radar and commodity surface
-comm_perm       = 2.3;    % (e) Commodity permitivity
+comm_perm       = 2.3;      % (e) Commodity permitivity
 
 %  End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -166,55 +166,41 @@ end
 
 
  %% FFT Plotting and range
- function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSize)
-    %FFT
-    %IQ_data = decimate(IQ_data,1000);
-    %Fs = Fs/1000;
-    T = 1/Fs;             % Sampling period
-    L = length(IQ_data);  % Length of signal
-    t = (0:L-1)*T;        % Time vector
-    window = hann(L);
-    Y = ifft((IQ_data.*L).*window);
-    P2 = abs(Y/L);
-    P1 = P2(1:L/2+1);
-    P1(2:end-1) = 2*P1(2:end-1);
-
-    L = length(IQ_data);  % Length of signal
-    f = Fs*(0:(L/2))/L;
+ function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz)
     
-    dR = sweeptime*(speedOfLight/2);
-    dR = dR/L;
-    deltaR = linspace(dR,dR*L,L/2+1); %frequency to range conversion
-    deltaR = deltaR - (deltaR(1));    %fixes distance offset - 0Hz = 0m
     
     %TRIG CODE
-    IQ_data = decimate(IQ_data,2000); %
-    Delta_F_Hz = stepSize;
-    L = round((speedOfLight*(100/100))/(Delta_F_Hz * 0.001 )+1); %res = 0.001 m
+    decimationFactor = length(IQ_data)/steps;
+    IQ_data = decimate(IQ_data,decimationFactor); %
+    
+    Delta_F_Hz = stepSizeHz;
     B = IQ_data;
-    B = [B; complex(zeros(L-length(IQ_data), 1))];
-    Xaxis = 1:1:L;
-    Xaxis = (Xaxis*(speedOfLight*(100/100)))/(Delta_F_Hz*(L - 1));
-
-    T = 1/(Fs/2000);      % Sampling period
     L = length(B);        % Length of signal
-    t = (0:L-1)*T;        % Time vector
     window = hann(L);
-    Y = ifft((B*L).*window);
+    B =  B.*window;  
+    
+    L = round(speedOfLight/(Delta_F_Hz * 0.001 )+1); %res = 0.001 m
+
+    B = [B; complex(zeros(L-length(IQ_data), 1))];
+    
+    Xaxis = 1:1:L;
+    Xaxis = (((Xaxis*speedOfLight)/(Delta_F_Hz*(L - 1))));
+    Xaxis = Xaxis./2;
+    Xaxis = Xaxis - Xaxis(1);
+
+    Y = ifft((B*L*decimationFactor)); %undo the IFFT division by N and decimation division
     P2 = abs(Y/L);
 
-
-
-
+    % TRIG VERSION
     figure(3)    
-    plot(Xaxis,mag2db(P2)) % TRIG VERSION
+    plot(Xaxis,mag2db(P2)) 
     hold on
-    axis([0 10 -150 -110])
-    %plot(deltaR,mag2db(P2))
+    axis([0 10 -100 10])
     title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
     title('SFCW IFFT Object Range and Magnitude');
+    
     %Est Range
     [y,x] = max(mag2db(P2(1000:4000))); % find peak FFT point
     disp('Distance of object based on FFT (m):')
@@ -245,8 +231,8 @@ combined = wholesig;
  pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
      'SampleRate',2*Offset);
  IQ_Data_noise = step(pnoise,IQ_Data);
- WhiteNoise    = awgn(IQ_Data_noise,1,.01);
- IQ_Data_noise = WhiteNoise;
+ %WhiteNoise    = awgn(IQ_Data_noise,1,.01);
+ %IQ_Data_noise = WhiteNoise;
  end
 
  %% Adding Circulator Coupling
