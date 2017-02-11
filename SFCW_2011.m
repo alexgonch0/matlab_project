@@ -15,19 +15,19 @@ function SFCW_2011
 %% User Entry Here
 fc = 24e9;       %24 Ghz is the system operating frequency
 c  = 3e8;        %Speed of light 
-Nsweep = 1;      %Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 10;      %Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        %System Bandwidth (higer bandwidth provide better resolution for target range
-Fc = 4e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
+Fc = 2e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
                     %which also increases the range resolution 
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
-Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
-SystemWhite_Noise       = -60;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Issolation   = -20;       %Issolation in TX RX circulator coupling
+Phase_NoiseAndOffset    = [-65,100e3]; %Noise and Offset 
+SystemWhite_Noise       = -58;       %Iq Noise floor NOT USED IN THIS VERSION
+Circulator_Isolation    = -20;       %Issolation in TX RX circulator coupling
 
-distance_comm   = 1.5;    % (m) distance between the radar and commodity surface
+distance_comm   = 2.5;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
 
 %  End User Entry                     
@@ -59,7 +59,7 @@ for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
    I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
    Q  = sin(((2*pi*(Fc*steps/(2*BW)*t))));
-   Z  = I - 1i*Q;
+   Z  = I + 1i*Q;
    wave(:,steps) = Z';
 end
 steps
@@ -114,7 +114,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
         sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
         plotSweepSpectrum(sig,fs); %Plot the Spectrogram
         disp('Sweeping')
-        Nsweep
+        m
 
         %% Setup the TX signal
         txsig = step(transmitter,sig);
@@ -131,14 +131,14 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
 
         %% Received radar return
         txsig = step(receiver,txsig);
-
+        txsig = phase_noise(txsig,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
 
         %% Dechirp and LPF
         dechirpsig       = dechirp(txsig,sig);
         dechirpsig       = IQ_filter(dechirpsig); %Fillter the data through a LPF
 
         %% Plot FFT
-        FFT_range(c,fs,dechirpsig,FreqSteps,BW,tot_sweep_time)
+        FFT_range(c,fs,dechirpsig,FreqSteps,BW,tot_sweep_time,Fc)
         end
 end   
 
@@ -166,7 +166,7 @@ end
 
 
  %% FFT Plotting and range
- function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime)
+ function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSize)
     %FFT
     %IQ_data = decimate(IQ_data,1000);
     %Fs = Fs/1000;
@@ -174,7 +174,7 @@ end
     L = length(IQ_data);  % Length of signal
     t = (0:L-1)*T;        % Time vector
     window = hann(L);
-    Y = fft(IQ_data.*window);
+    Y = ifft((IQ_data.*L).*window);
     P2 = abs(Y/L);
     P1 = P2(1:L/2+1);
     P1(2:end-1) = 2*P1(2:end-1);
@@ -187,18 +187,38 @@ end
     deltaR = linspace(dR,dR*L,L/2+1); %frequency to range conversion
     deltaR = deltaR - (deltaR(1));    %fixes distance offset - 0Hz = 0m
     
-    figure(3)
+    %TRIG CODE
+    IQ_data = decimate(IQ_data,2000); %
+    Delta_F_Hz = stepSize;
+    L = round((speedOfLight*(100/100))/(Delta_F_Hz * 0.001 )+1); %res = 0.001 m
+    B = IQ_data;
+    B = [B; complex(zeros(L-length(IQ_data), 1))];
+    Xaxis = 1:1:L;
+    Xaxis = (Xaxis*(speedOfLight*(100/100)))/(Delta_F_Hz*(L - 1));
+
+    T = 1/(Fs/2000);      % Sampling period
+    L = length(B);        % Length of signal
+    t = (0:L-1)*T;        % Time vector
+    window = hann(L);
+    Y = ifft((B*L).*window);
+    P2 = abs(Y/L);
+
+
+
+
+    figure(3)    
+    plot(Xaxis,mag2db(P2)) % TRIG VERSION
     hold on
-    axis([0 20 -100 10])
-    plot(deltaR,mag2db(P1))
+    axis([0 10 -150 -110])
+    %plot(deltaR,mag2db(P2))
     title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
-    title('SFCW FFT Object Range and Magnitude');
+    title('SFCW IFFT Object Range and Magnitude');
     %Est Range
-    [y,x] = max(mag2db(P1)); % find peak FFT point
+    [y,x] = max(mag2db(P2(1000:4000))); % find peak FFT point
     disp('Distance of object based on FFT (m):')
-    deltaR(x)
+    Xaxis(x+1000)
  end
 
  %% Combining the steps in the waveform
@@ -215,6 +235,7 @@ combined = wholesig;
  %% Plotting Spectrogram
  function plotSweepSpectrum(data,fs)
  figure(2)
+ data = complex(imag(data),real(data)); % Swap needed becuse spectrogram does FFT not IFFT
  spectrogram(data,32,16,32,fs,'yaxis');
  title('SFCW Signal Spectrogram/Sweep-time');
  end
