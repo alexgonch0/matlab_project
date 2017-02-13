@@ -103,7 +103,7 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
             sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
             plotSweepSpectrum(sig,fs); %Plot the Spectrogram
             disp('Sweeping')
-            Nsweep
+            Nsweep;
 
             
             %% Setup the TX signal
@@ -219,39 +219,38 @@ end
  end
  
  %% Not Yet Used
-function dechirped_output = mixer(Transmit_Waveform, Received_Waveform)
-% This is a stand-alone mixer function. It's not yet complete, I'm still
-% working on it, but if you see anything that can be fixed or if you have
-% any suggestions to improve it, just let me know.
+function [dechirp_out] = dechirp_mixer(received, transmitted, m, Nsweep, noise_lv, noise_off)
+% Input variables "received" and "transmitted" must be Nx1 complex doubles of the
+% same length.
+% Input variables 'm' and 'Nsweep' are used to create an output periodogram after
+% the final sweep.
+% Input variables 'noise_lv' and 'noise_off' are used to represent the
+% phase noise level and phase noise offset, respectively.
 
-% Transmit_Waveform and Received_Waveform must be FMCW Waveforms.
+Fs = 24e9; %Sample Frequency set to 24 GHz.
 
-%Fs = 24e9; Tm = 0.0001
-%hwav = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm);
+clean_out = dechirp(received, transmitted); % Mixes received and transmitted signals
 
-%transmit_waveform = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm,'SweepBandwidth',100.0e3,'OutputFormat','Sweeps','NumSweeps',2);
-figure()
-plot(Transmit_Waveform)
 
-xref = step(Transmit_Waveform);
+pnoise = comm.PhaseNoise('Level', noise_lv, 'FrequencyOffset', noise_off,'SampleRate', 4*noise_off(2));
 
-%received_waveform = phased.FMCWWaveform('SampleRate',Fs,'SweepTime',Tm, 'SweepBandwidth',150.0e3,'OutputFormat','Sweeps','NumSweeps',2);
-figure()
-plot(Received_Waveform)
+conv_loss = 0.93; % Conversion Loss from mixer
 
-x = step(Received_Waveform);
+dechirp_out = conv_loss*(step(pnoise, clean_out)); % Adds phase noise, saves to output
 
-dechirped_output = dechirp(x, xref);
 
-phase_noise(dechirped_output);
+% Prints output periodogram on final sweep
+if m == Nsweep
 
-figure()
-plot(real(dechirped_output))
+    [Pyy,F] = periodogram(dechirp_out,[],1024,Fs,'centered');
+    figure();
+    plot(F/1000,1*log10(Pyy));
+    grid;
+    xlabel('Frequency (kHz)');
+    ylabel('Power/Frequency (dB/Hz)');
+    title('Power Spectral Density Estimate After Mixer Stage'); 
+    
+end
 
-[Pxx,F] = periodogram(dechirped_output,[],1024,Fs,'centered');
-figure()
-plot(F/1000,10*log10(Pxx)); grid;
-xlabel('Frequency (kHz)');
-ylabel('Power/Frequency (dB/Hz)');
-title('Periodogram Power Spectral Density Estimate After Dechirping');
+
 end
