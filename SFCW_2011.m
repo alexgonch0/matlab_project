@@ -7,7 +7,7 @@ function SFCW_2011
 %   travels back to the radar.
 % # The receiving antenna collects the signal.
 % # The received signal is dechirped and saved in a buffer.
-% # The signal is LPF filltered to remove the IQ squarewave jumps in the FFT.
+% # The signal is LPF filltered to remove the IQ DC jumps in the FFT.
 % # FFT and range plotted 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -15,7 +15,7 @@ function SFCW_2011
 %% User Entry Here
 fc = 24e9;       %24 Ghz is the system operating frequency
 c  = 3e8;        %Speed of light 
-Nsweep = 1;      %Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 5;      %Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        %2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
 Fc = 1e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
@@ -25,10 +25,10 @@ tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow
 
 Phase_NoiseAndOffset    = [-90,100e3]; %Noise and Offset 
 SystemWhite_Noise       = -58;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation    = -80;       %Issolation in TX RX circulator coupling
+Circulator_Isolation    = -30;       %Issolation in TX RX circulator coupling
 
 distance_comm   = 2.5;    % (m) distance between the radar and commodity surface
-comm_perm       = 2.3;      % (e) Commodity permitivity
+comm_perm       = 2.3;    % (e) Commodity permitivity
 
 %  End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -125,7 +125,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
         txsig = step(target_comm,txsig); 
         
         
-        %% Add Coupling, dechirp and LPF
+        %% Add Coupling
         txsig = circulator(Circulator_Isolation,sig,txsig);
         
 
