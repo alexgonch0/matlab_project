@@ -11,24 +11,30 @@ function FMCW_2011
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%% User Entry Section
-fc = 24e9;                    % 24 Ghz is the system operating frequency
-c = 3e8;                      % Speed of light 
-Nsweep = 1;
+%% User Entry Here
+fc = 24e9;       %24 Ghz is the system operating frequency
+c  = 3e8;         %Speed of light 
+Nsweep = 5;
 
 range_max_meters   = 4;       % Bottom of tank in rail car
 tot_sweep_time     = 1e-3;    % Use sweep of 1ms (long sweeps create large arrays at high range resolution
-range_res_meters   = 0.05;    % 5 cm resolution
+range_res_meters   = 0.001;   % 1 cm resolution
 
-PhaseNoiseLevel         = [-93, -120];  % Phase Noise levels in dBc/Hz
-                                        %%% Try yourself [-91, -120] and [-95, -120]
-PhaseNoiseOffset        = [2e9,  8e9];  % Phase Noise frequency offsets in Hz
-SystemWhite_Noise       = -60;          % IQ Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation    = -20;          % Isolation in TX RX circulator coupling
+Phase_NoiseAndOffset    = [-65,100e3]; %Noise and Offset 
+SystemWhite_Noise       = -60;       %Iq Noise floor NOT USED IN THIS VERSION
+Circulator_Issolation   = -30;       %Issolation in TX RX circulator coupling
 
-distance_comm   = 1.5;        % (m) distance between the radar and commodity surface
-comm_perm       = 2.3;        % (e) Commodity permitivity
-%  End of User Entry
+distance_comm   = 2.5;    % (m) distance between the radar and commodity surface
+comm_perm       = 2.3;    % (e) Commodity permitivity
+
+%Decimation will allow us to cut the data into 'decimation" number of
+%points to replicate SFCW behavior and use SFCW type of FFT
+BOOL_DECIMATE = true;     % true enables decimation, false disables it
+PointsAfterdecimation    = 2000;      % make it such that there is a 'decimation' number of points as if SFCW
+
+
+%  End User Entry                     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
@@ -51,11 +57,11 @@ fs = max(2*fb_max,bw);
 %% FMCW wave
 waveform = phased.FMCWWaveform('SweepTime',tot_sweep_time,'SweepBandwidth',bw,...
     'SampleRate',fs);
-sig = step(waveform);
+sig_combined = step(waveform);
 
 
 %% Target Model
-c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm));  % propagation speed calculation
+c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm));  %Propagation speed calculation
 rcs_comm = db2pow(min(10*log10(distance_comm)+5,20));   % cross-section of the commodity under the radar
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,...
     'PropagationSpeed',c1,'OperatingFrequency',fc);
@@ -94,7 +100,7 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
             [radar_pos,radar_vel] = step(radarmotion,(1));
             
             %% Add any phase noise
-            sig = phase_noise(sig,PhaseNoiseLevel,PhaseNoiseOffset);
+            sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
             plotSweepSpectrum(sig,fs); %Plot the Spectrogram
             disp('Sweeping')
             Nsweep
@@ -110,7 +116,7 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
 
             %% Add Coupling, dechirp and LPF
-            txsig = circulator(Circulator_Isolation,sig,txsig);
+            txsig = circulator(Circulator_Issolation,sig,txsig);
         
 
             %% Received radar return
@@ -121,14 +127,46 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
             dechirpsig       = dechirp(txsig,sig);
 
             %% FFT Plot
-            FFT_range(c,fs,dechirpsig,sweep_slope)
+            FFT_range(c,fs,dechirpsig,sweep_slope,bw,BOOL_DECIMATE,PointsAfterdecimation)
 
 
         end
 end
 
 %% FFT Plotting and range
-function FFT_range (c,Fs,IQ_data,sweep_slope)
+function FFT_range (c,Fs,IQ_data,sweep_slope,bw,BOOL_DECIMATE,decimation)
+
+    if BOOL_DECIMATE == true
+    speedOfLight = c;
+    Delta_F_Hz = bw/decimation;
+    
+    decimationFactor = length(IQ_data)/decimation;
+    IQ_data = decimate(IQ_data,decimationFactor); %
+    B = IQ_data;
+    L = length(B);        % Length of signal
+    window = hann(L);
+    B =  B.*window;  
+    L = round(speedOfLight/(Delta_F_Hz * 0.001 )+1); %res = 0.001 m
+    B = [B; complex(zeros(L-length(IQ_data), 1))];
+    
+    Xaxis = 1:1:L;
+    Xaxis = (((Xaxis*speedOfLight)/(Delta_F_Hz*(L - 1))));
+    Xaxis = Xaxis./2;
+    Xaxis = Xaxis - Xaxis(1);
+    
+    Y = fft(B); 
+    
+    P2 = abs(Y/L);
+    figure(3)
+    hold on
+    axis([0 5 -120 -20])
+    plot(Xaxis,mag2db(P2)) 
+    title('Range Power Plot')
+    xlabel('Range (m)')
+    ylabel('|P1 db(m)|')
+    title('FMCW FFT Decimated Object Range and Magnitude');
+    
+    else
     % FFT
     T = 1/Fs;             % Sampling period
     L = length(IQ_data);  % Length of signal
@@ -140,10 +178,10 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
     P1 = P2(1:L/2+1);
     P1(2:end-1) = 2*P1(2:end-1);
     
-    rng = c*f/sweep_slope/2; % RANGE PLOT IN M 
+    rng = c*f/sweep_slope/2; % rng is RANGE PLOT IN M 
     figure(3)
     hold on
-    axis([0 20 -100 10])
+    axis([0 5 -100 10])
     plot(rng,mag2db(P1))
     title('Range Power Plot')
     xlabel('Range (m)')
@@ -154,22 +192,23 @@ function FFT_range (c,Fs,IQ_data,sweep_slope)
     [y,x] = max(mag2db(P1)); % find peak FFT point
     disp('Distance of object based on FFT (m):')
     rng(x) % map to range array
+    end
 end
 
  %% Adding Circulator Coupling
- function [txsig_out] = circulator(isolation, initial, target)
-    isolation = 10^(isolation/10);	
-    txsig_out = target + isolation * initial;
+ function [txsig_out] = circulator(coupling_factor, initial, target)
+    coupling_factor = 10^(coupling_factor/10);	
+    txsig_out = target + coupling_factor * initial;
  end
 
 
  %% Adding IQ phasenoise
- function [IQ_Data_noise] = phase_noise(IQ_Data,Level,Offset)
- pnoise = comm.PhaseNoise('Level',Level,'FrequencyOffset',Offset,...
-          'SampleRate', 4*Offset(2));
+ function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
+ pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
+     'SampleRate',2*Offset);
  IQ_Data_noise = step(pnoise,IQ_Data);
- WhiteNoise    = awgn(IQ_Data_noise,1,.01);
- IQ_Data_noise = WhiteNoise;
+ %WhiteNoise    = awgn(IQ_Data_noise,1,.01);
+ %IQ_Data_noise = WhiteNoise;
  end
  
  %% Plotting Spectrogram
