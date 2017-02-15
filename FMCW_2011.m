@@ -124,7 +124,7 @@ radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
 
             %% Dechirp 
-            dechirpsig       = dechirp(txsig,sig);
+            dechirpsig       = dechirp_mixer(txsig, sig, m, Nsweep);
 
             %% FFT Plot
             FFT_range(c,fs,dechirpsig,sweep_slope,bw,BOOL_DECIMATE,PointsAfterdecimation)
@@ -219,20 +219,20 @@ end
  end
  
  %% Not Yet Used
-function [dechirp_out] = dechirp_mixer(received, transmitted, m, Nsweep, noise_lv, noise_off)
+function [dechirp_out] = dechirp_mixer(received, transmitted, m, Nsweep)
 % Input variables "received" and "transmitted" must be Nx1 complex doubles of the
 % same length.
 % Input variables 'm' and 'Nsweep' are used to create an output periodogram after
 % the final sweep.
 % Input variables 'noise_lv' and 'noise_off' are used to represent the
-% phase noise level and phase noise offset, respectively.
+% phase noise level and phase noise offset, respectively. [-180, -190], [2e9,  8e9]
 
 Fs = 24e9; %Sample Frequency set to 24 GHz.
 
 clean_out = dechirp(received, transmitted); % Mixes received and transmitted signals
 
 
-pnoise = comm.PhaseNoise('Level', noise_lv, 'FrequencyOffset', noise_off,'SampleRate', 4*noise_off(2));
+pnoise = comm.PhaseNoise('Level', [-180, -190], 'FrequencyOffset', [2e9,  8e9],'SampleRate', 4*(8e9));
 
 conv_loss = 0.93; % Conversion Loss from mixer
 
