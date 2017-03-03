@@ -18,7 +18,7 @@ c  = 3e8;        %Speed of light
 Nsweep = 5;      %Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        %2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
-Fc = 1e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
+Fc = 4e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
                  %which also increases the range resolution 
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
@@ -54,12 +54,12 @@ figure(1)
 
 
 
-%create a sine wave for every step
+%create a sine wave for every step with the given number of points
 for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
    I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
    Q  = sin(((2*pi*(Fc*steps/(2*BW)*t))));
-   Z  = I + 1i*Q;
+   Z  = I + 1i*Q; %combine into a I Q type waveform
    wave(:,steps) = Z';
 end
 steps
@@ -145,6 +145,9 @@ end
 
  
 %% FilterDesigner LPF for filtering IQ jumps
+%Filter created in MATLAB filterdesigner to filter square jumps 
+%IQ_data: data to be filtered
+%Returns: IQ_data passed through a LPF
 function [filtered_data] = IQ_filter(IQ_data)
 % All frequency values are in Hz.
 Fs = 4000000000;  % Sampling Frequency
@@ -165,13 +168,20 @@ filtered_data = output;
 end
 
 
- %% FFT Plotting and range
+ %% FFT Plotting and range (decimate,window,IFFT and plot the data)
+ %speedOfLight: factor that was predefined
+ %Fs: sample frequency
+ %IQ_data: recived data
+ %steps: number of steps the user entered
+ %sweeptime: the sweeptime the user entered in seconds
+ %stepSizeHz: step size in Hz of each step
+ %Returns: combined signal at all steps 
  function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz)
     
     
     %TRIG CODE
     decimationFactor = length(IQ_data)/steps;
-    IQ_data = decimate(IQ_data,decimationFactor); %
+    IQ_data = decimate(IQ_data,decimationFactor); %Apply decimation
     
     Delta_F_Hz = stepSizeHz;
     B = IQ_data;
@@ -207,7 +217,10 @@ end
     Xaxis(x+1000)
  end
 
- %% Combining the steps in the waveform
+ %% Combining the steps in the waveform by combinbing each step
+ %steps: number of steps in the waveform
+ %wave: the IQ waveform data
+ %Returns: combined signal at all steps 
  function [combined] = combineSteps(wave,steps)
  disp('Combining Waveforms(this may take a bit)')
  wholesig = [] ;  
@@ -219,14 +232,21 @@ combined = wholesig;
  end
  
  %% Plotting Spectrogram
+ %fs: is sampling frequency
+ %data: is the IQ data to be ploted
+ %Returns: nothing
  function plotSweepSpectrum(data,fs)
  figure(2)
- data = complex(imag(data),real(data)); % Swap needed becuse spectrogram does FFT not IFFT
+ data = complex(imag(data),real(data)); %Swap needed becuse spectrogram does FFT not IFFT
  spectrogram(data,32,16,32,fs,'yaxis');
  title('SFCW Signal Spectrogram/Sweep-time');
  end
   
  %% Adding IQ phasenoise
+ %IQ_Data: is the original data to apply phase noise to
+ %PhaseNoise: the ammount of phase noise to add in db
+ %Offset: frequency offsets to apply phase noise to (Hz)
+ %Returns: a phase noise mixed version of the IQ data
  function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
  pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
      'SampleRate',2*Offset);
@@ -235,9 +255,14 @@ combined = wholesig;
  %IQ_Data_noise = WhiteNoise;
  end
 
- %% Adding Circulator Coupling
+ %% Adding Circulator Coupling (RX TX coupling)
+ %isolation: dB of issolation between the circulator
+ %initial: the TX signal
+ %target: the RX signal
+ %Returns: the initial recived signal with a portion of the TX signal 
+ 
  function [txsig_out] = circulator(isolation, initial, target)
-    isolation = 10^(isolation/10);	
+    isolation = 10^(isolation/10); % convert from db to linear
     txsig_out = target + isolation * initial;
  end
 
