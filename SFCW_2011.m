@@ -18,7 +18,7 @@ c  = 3e8;        %Speed of light
 Nsweep = 5;      %Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        %2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
-Fc = 4e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
+Fc = 1e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
                  %which also increases the range resolution 
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
@@ -27,7 +27,7 @@ Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset
 SystemWhite_Noise       = -58;       %Iq Noise floor NOT USED IN THIS VERSION
 Circulator_Isolation    = -30;       %Issolation in TX RX circulator coupling
 
-distance_comm   = 3.5;    % (m) distance between the radar and commodity surface
+distance_comm   = 3;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
 
 CALERROR = true;
@@ -59,7 +59,7 @@ figure(1)
 for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
        if CALERROR %Simulate small calibration errors if bool is true
-       randomCallError = -5e4 + (5e4).*rand(1,1);
+       randomCallError = -2e4 + (2e4).*rand(1,1);
        else
        randomCallError = 0;
        end
@@ -95,9 +95,9 @@ ant_aperture = 6.06e-4;                         % in square meter
 ant_gain = aperture2gain(ant_aperture,lambda);  % in dB
 
 tx_power = db2pow(ant_gain)*db2pow(1)*1e-3;     % in watts
-tx_gain  = 9+ant_gain;                          % in dB
+tx_gain  = 15+ant_gain;                         % in dB
 
-rx_gain = 15+ant_gain;                          % RX LNA gain in dB
+rx_gain = 20+ant_gain;                          % RX LNA gain in dB
 rx_nf   = 3;                                    % Noise Figure in dB
 
 tgt_pos = [distance_comm;0;0];                  % x y z position of target object.
@@ -211,7 +211,7 @@ end
     figure(3)    
     plot(Xaxis,mag2db(P2)) 
     hold on
-    axis([0 10 -100 10])
+    axis([0 10 -40 40])
     title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
