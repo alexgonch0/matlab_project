@@ -23,13 +23,14 @@ Fc = 4e6;        %Minimum frequency which dictates the number of steps ex 2Mhz s
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
-Phase_NoiseAndOffset    = [-90,100e3]; %Noise and Offset 
+Phase_NoiseAndOffset    = [-80,100e3]; %Noise and Offset 
 SystemWhite_Noise       = -58;       %Iq Noise floor NOT USED IN THIS VERSION
 Circulator_Isolation    = -30;       %Issolation in TX RX circulator coupling
 
-distance_comm   = 2.5;    % (m) distance between the radar and commodity surface
+distance_comm   = 3.5;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;    % (e) Commodity permitivity
 
+CALERROR = true;
 %  End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -44,7 +45,7 @@ comm_perm       = 2.3;    % (e) Commodity permitivity
 %% Start Sweep Code here:
 
 lambda = c/fc;          %wavelength
-FreqSteps = BW/Fc;       %calculate number of steps
+FreqSteps = BW/Fc;      %calculate number of steps
 fs  = BW*2;             %Samplign frequency at 4Ghz
 tot_points = fs*tot_sweep_time; %points for given sweep time
 points_per_step = tot_points/FreqSteps;
@@ -57,8 +58,13 @@ figure(1)
 %create a sine wave for every step with the given number of points
 for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
-   I  = cos(((2*pi*(Fc*steps/(2*BW)*t))));
-   Q  = sin(((2*pi*(Fc*steps/(2*BW)*t))));
+       if CALERROR %Simulate small calibration errors if bool is true
+       randomCallError = -5e4 + (5e4).*rand(1,1);
+       else
+       randomCallError = 0;
+       end
+   I  = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+   Q  = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
    Z  = I + 1i*Q; %combine into a I Q type waveform
    wave(:,steps) = Z';
 end
