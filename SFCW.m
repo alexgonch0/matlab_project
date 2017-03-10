@@ -16,6 +16,11 @@ Phase_NoiseAndOffset    = [-80,100e3] %Noise and Offset
 SystemWhite_Noise       = [-60]       %Iq Noise floor
 Circulator_Issolation   = [-20];      %-20dB issolation
 
+slant_length    = 0.0115787; % (m) slant lenght of antenna
+beam_shape      = 'Circular'; %Circular or Elliptic choice
+aspect_angle    = 0; %Define angle of incident beam
+phys_ant_d       = 0.0381;
+
 distance_comm   = 2;    % (m) distance between the radar and commodity surface
 comm_perm       = 2.3;  % (e) Commodity permitivity
 
@@ -80,8 +85,9 @@ channel = phased.WidebandFreeSpace('PropagationSpeed',c,...
 % simplicity, the antenna is assumed to be isotropic and the gain of the
 % antenna is included in the transmitter and the receiver.
 
-ant_aperture = 6.06e-4;                         % in square meter
-ant_gain = aperture2gain(ant_aperture,lambda);  % in dB
+ant_diameter = sqrt(3*lambda*slant_length);
+effective_d = ant_diameter/phys_ant_d;
+ant_gain = ((pi*ant_diameter)/lambda)^2 * effective_d;
 
 tx_power = db2pow(ant_gain)*db2pow(1)*1e-3;     % in watts
 tx_gain  = 9+ant_gain;                          % in dB
