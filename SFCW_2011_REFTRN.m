@@ -13,27 +13,27 @@
 
 
 %% User Entry Here
-fc = 24e9;       %24 Ghz is the system operating frequency
-c  = 3e8;        %Speed of light 
-Nsweep = 21;      %Number of sweep for the radar to perform with the radar (overlap the plots)
+fc = 24e9;       % 24 Ghz is the system operating frequency
+c  = 3e8;        % Speed of light 
+Nsweep = 1;      % Number of sweep for the radar to perform with the radar (overlap the plots)
 
-BW = 2e9;        %2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
-Fc = 1e6;        %Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
-                 %which also increases the range resolution 
+BW = 2e9;        % 2GHz System Bandwidth (higer bandwidth provides better resolution for target range)
+Fc = 1e6;        % Minimum frequency which dictates the number of steps (e.g. 2MHz) so we have
+                 % 1000 steps which also increases the range resolution 
                     
-tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
+tot_sweep_time = 1e-3;              % (s) long sweep times create large signal arrays (slow) 
 
-Phase_NoiseAndOffset = [-80,100e3]; %Noise and Offset 
-SystemWhite_Noise = -58;       %Iq Noise floor NOT USED IN THIS VERSION
-Circulator_Isolation = -20;       %Issolation in TX RX circulator coupling
+Phase_NoiseAndOffset = [-80,100e3]; % Noise and Offset 
+SystemWhite_Noise = -58;            % Iq Noise floor [NOT USED IN THIS VERSION]
+Circulator_Isolation = -20;         % Issolation in TX RX circulator coupling
 
-slant_length = 0.0115787; % (m) slant lenght of antenna
-slant_angle = 22; %in degrees 
+slant_length = 0.0115787;           % (m) slant lenght of antenna
+slant_angle = 22;                   % (degress) 
 phys_ant_d = 0.0381;
 
-dist_comm   = 1;  % (m) distance between the radar and commodity surface
+dist_comm = 1;                      % (m) distance between the radar and commodity surface
 tank_h = 4.71;
-comm_perm = 2.3;    % (e) Commodity permitivity
+comm_perm = 2.3;                    % (e) Commodity permitivity
 air_perm = 1;
 metal_perm = 999;
 CALERROR = true;
@@ -48,41 +48,41 @@ CALERROR = true;
 
 %% Start Sweep Code here:
 
-lambda = c/fc;          %wavelength
-FreqSteps = BW/Fc;      %calculate number of steps
-fs  = BW*2;             %Samplign frequency at 4Ghz
-tot_points = fs*tot_sweep_time; %points for given sweep time
+lambda = c/fc;                  % wavelength
+FreqSteps = BW/Fc;              % calculate number of steps
+fs  = BW*2;                     % sampling frequency at 4 GHz
+tot_points = fs*tot_sweep_time; % points for given sweep time
 points_per_step = tot_points/FreqSteps;
 L = points_per_step;
 wave = zeros(L,FreqSteps);
-figure(1)
+% figure(1) <---- what is this? (Alex)
 
 
 
-%create a sine wave for every step with the given number of points
+% Create a sine wave for every step with the given number of points:
 for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
-       if CALERROR %Simulate small calibration errors if bool is true
-       randomCallError = -1e4 + (1e4).*rand(1,1);
+       if CALERROR % simulate small calibration errors if bool is true
+           randomCallError = -1e4 + (1e4).*rand(1,1);
        else
-       randomCallError = 0;
+           randomCallError = 0;
        end
    I  = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
    Q  = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-   Z  = I + 1i*Q; %combine into a I Q type waveform
+   Z  = I + 1i*Q; % combine into an IQ type waveform
    wave(:,steps) = Z';
 end
 steps
 
 
 %% Target Model
-rcs_comm  = db2pow(min(10*log10(dist_comm)+5,20)); %RCS
-c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); %Propagation speed calculation
+rcs_comm  = db2pow(min(10*log10(dist_comm)+5,20));     % RCS
+c1 = 1/ sqrt((4*pi*10e-7)*(8.854*10e-12)*(comm_perm)); % Propagation speed calculation
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c1,...
     'OperatingFrequency',fc);
 
 
-%%
+%% Channel
 % The propagation model is assumed to be free space.
 channel = phased.WidebandFreeSpace('PropagationSpeed',c,...
     'OperatingFrequency',fc,'SampleRate',fs,'TwoWayPropagation',true);
@@ -117,7 +117,7 @@ receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
 radarmotion = phased.Platform('InitialPosition',[0;0;0]);
 
 
-sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one wavefform
+sig_combined = combineSteps(wave,FreqSteps); % ?ombine all steps into one wavefform
 aspect_angle = 0;
 i = 0;
 
@@ -146,17 +146,17 @@ i = 0;
             
         %% Add any phase noise
         sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
-        plotSweepSpectrum(sig,fs); %Plot the Spectrogram
+        plotSweepSpectrum(sig,fs); % plot the Spectrogram
         disp('Sweeping')
-        m
 
         %% Setup the TX signal
         txsig = step(transmitter,sig);
         
         
-%the delay ? is given by R/c, where R is the propagation distance
-%and c is the propagation speed. The free-space path loss is given by
-        %Lfsp        = 20*log10(distance_comm*2)+20*log10(fc)+20*log10((4*pi)/c);%tx/rx gain already in signal
+        % the delay ? is given by R/c, where R is the propagation distance
+        % and c is the propagation speed. The free-space path loss is given by
+        
+        %Lfsp = 20*log10(distance_comm*2)+20*log10(fc)+20*log10((4*pi)/c); % tx/rx gain already in signal
         Lfsp_oneway = 20*log10(dist_comm)+20*log10(fc)+20*log10((4*pi)/c)
         
         powInterface = (10^((-Lfsp_oneway)/20)); %path loss
@@ -214,7 +214,7 @@ i = 0;
 %Returns: IQ_data passed through a LPF
 function [filtered_data] = IQ_filter(IQ_data)
 % All frequency values are in Hz.
-Fs = 4000000000;  % Sampling Frequency
+Fs = 4e9;     % Sampling Frequency
 
 N  = 25;      % Order
 Fc = 350000;  % Cutoff Frequency
@@ -233,27 +233,25 @@ end
 
 
  %% FFT Plotting and range (decimate,window,IFFT and plot the data)
- %speedOfLight: factor that was predefined
- %Fs: sample frequency
- %IQ_data: recived data
- %steps: number of steps the user entered
- %sweeptime: the sweeptime the user entered in seconds
- %stepSizeHz: step size in Hz of each step
- %Returns: combined signal at all steps 
- function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz)
-    
-    
-    %TRIG CODE
+ % speedOfLight: factor that was predefined
+ % Fs: sample frequency
+ % IQ_data: recived data
+ % steps: number of steps the user entered
+ % sweeptime: the sweeptime the user entered in seconds
+ % stepSizeHz: step size in Hz of each step
+ % Returns: combined signal at all steps 
+ function FFT_range(speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz)
+    % TRIG CODE
     decimationFactor = length(IQ_data)/steps;
-    IQ_data = decimate(IQ_data,decimationFactor); %Apply decimation
+    IQ_data = decimate(IQ_data,decimationFactor); % Apply decimation
     
     Delta_F_Hz = stepSizeHz;
     B = IQ_data;
-    L = length(B);        % Length of signal
+    L = length(B); % Length of signal
     window = hann(L);
-    B =  B.*window;  
+    B = B.*window;  
     
-    L = round(speedOfLight/(Delta_F_Hz * 0.001 )+1); %res = 0.001 m
+    L = round(speedOfLight/(Delta_F_Hz * 0.001) + 1); % res = 0.001 m
 
     B = [B; complex(zeros(L-length(IQ_data), 1))];
     
@@ -262,11 +260,11 @@ end
     Xaxis = Xaxis./2;
     Xaxis = Xaxis - Xaxis(1);
 
-    Y = ifft((B*L*decimationFactor)); %undo the IFFT division by N and decimation division
+    Y = ifft((B*L*decimationFactor)); % undo the IFFT division by N and decimation division
     P2 = abs(Y/L);
-
+    
     % TRIG VERSION
-    figure(3)    
+    figure(2)    
     plot(Xaxis,mag2db(P2)) 
     hold on
     axis([0 10 -40 40])
@@ -275,42 +273,49 @@ end
     ylabel('|P1 db(m)|')
     title('SFCW IFFT Object Range and Magnitude');
     
-    %Est Range
-    [y,x] = max(mag2db(P2(1000:4000))); % find peak FFT point
+    % Estimate Range
+    [y,x] = max(mag2db(P2(round(1/Xaxis(2)):round(5/Xaxis(2))))); % find peak FFT point 1m to 5m
     disp('Distance of object based on FFT (m):')
-    Xaxis(x+1000)
+    Xaxis(x+round(1/Xaxis(2)))
+    
+    % Calculate SNR (you can read the details in the function scope below)
+    peak = Xaxis(x+round(1/Xaxis(2)));
+    window = 1.0;
+    snr = calculateSNR(P2, Xaxis, peak, window);
+    snr_disp = ['SNR: ', num2str(round(snr*100)/100), ' dB']; % round to 2 digits after decimal point
+    disp(snr_disp)
  end
 
  %% Combining the steps in the waveform by combinbing each step
- %steps: number of steps in the waveform
- %wave: the IQ waveform data
- %Returns: combined signal at all steps 
+ % steps: number of steps in the waveform
+ % wave: the IQ waveform data
+ % Returns: combined signal at all steps 
  function [combined] = combineSteps(wave,steps)
- disp('Combining Waveforms(this may take a bit)')
+ disp('Combining Waveforms... (this may take a bit)')
  wholesig = [] ;  
      for count = 1:steps
-     sig =  wave(:,count);
+     sig = wave(:,count);
      wholesig = vertcat(wholesig,sig);
      end
-combined = wholesig;
+ combined = wholesig;
  end
  
  %% Plotting Spectrogram
- %fs: is sampling frequency
- %data: is the IQ data to be ploted
- %Returns: nothing
+ % fs: is sampling frequency
+ % data: is the IQ data to be ploted
+ % Returns: nothing
  function plotSweepSpectrum(data,fs)
- figure(2)
+ figure(1)
  data = complex(imag(data),real(data)); %Swap needed becuse spectrogram does FFT not IFFT
  spectrogram(data,32,16,32,fs,'yaxis');
  title('SFCW Signal Spectrogram/Sweep-time');
  end
   
  %% Adding IQ phasenoise
- %IQ_Data: is the original data to apply phase noise to
- %PhaseNoise: the ammount of phase noise to add in db
- %Offset: frequency offsets to apply phase noise to (Hz)
- %Returns: a phase noise mixed version of the IQ data
+ % IQ_Data: is the original data to apply phase noise to
+ % PhaseNoise: the ammount of phase noise to add in db
+ % Offset: frequency offsets to apply phase noise to (Hz)
+ % Returns: a phase noise mixed version of the IQ data
  function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
  pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
      'SampleRate',2*Offset);
@@ -320,15 +325,61 @@ combined = wholesig;
  end
 
  %% Adding Circulator Coupling (RX TX coupling)
- %isolation: dB of issolation between the circulator
- %initial: the TX signal
- %target: the RX signal
- %Returns: the initial recived signal with a portion of the TX signal 
+ % isolation: dB of issolation between the circulator
+ % initial: the TX signal
+ % target: the RX signal
+ % Returns: the initial recived signal with a portion of the TX signal 
  
  function [txsig_out] = circulator(isolation, initial, target)
     isolation = 10^(isolation/10); % convert from db to linear
     txsig_out = target + isolation * initial;
  end
 
-
-
+ %% SNR smart calculation
+ % y_data (array, ?) : power from FFT
+ % x_data (array, m) : values of x required to apply the window
+ % peak_position (m) : actual distance to commodity acquired from FFT
+ % window (m)        : the range away from the peak to be used in avg noise power calculation
+ % Returns: SNR in dB.
+ function [snr_out] = calculateSNR(y_data, x_data, peak_position, window)
+    figure(3)
+    plot(x_data, y_data);
+    axis([0 (peak_position + window) -1 9])
+    
+    %% Define window in terms of y_data indices:
+    length_of_y        = size(y_data, 1);    
+    peak_index         = round(peak_position/x_data(end)*length_of_y);
+    window_index_left  = round(peak_index - (window/2)/x_data(end)*length_of_y);
+    window_index_right = round(peak_index + (window/2)/x_data(end)*length_of_y);
+    
+    debug_display = ['index_left: ', num2str(window_index_left), ' peak_index: ', num2str(peak_index), ' index_right: ', num2str(window_index_right)];
+    disp(debug_display)
+    
+    %% Collect noise floor data:
+    marker_left  = peak_index;   % left boundary of the peak
+    marker_right = peak_index;   % right boundary of the peak
+    
+    % Acquire data from the left of the peak:
+    for i = (peak_index - 1) : -1 : window_index_left
+        if y_data(i) < y_data(i-1)
+            marker_left = i;
+            break
+        end
+    end
+    
+    % Acquire data from the right of the peak:
+    for i = peak_index : 1 : window_index_right
+        if y_data(i) < y_data(i+1)
+            marker_right = i;
+            break
+        end
+    end
+    
+    % Calculate average noise power:
+    noise_data_left  = y_data(window_index_left : marker_left);
+    noise_data_right = y_data(marker_right : window_index_right);
+    noise_average    = (mean(noise_data_left) + mean(noise_data_right))/2;
+    
+    % Output SNR in dB:
+    snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
+ end
