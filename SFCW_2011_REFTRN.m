@@ -213,6 +213,7 @@ end
         SNRs            = zeros(Nsweep, 1);
     end
     
+    %% FFT
     decimationFactor = length(IQ_data)/steps;
     IQ_data = decimate(IQ_data,decimationFactor); % apply decimation
     
@@ -243,14 +244,15 @@ end
     ylabel('|P1 db(m)|')
     title('SFCW IFFT Object Range and Magnitude');
     
-    % Estimate Range
+    %% Estimate Range
     [y,x] = max(mag2db(P2(round(1/Xaxis(2)):round(5/Xaxis(2))))); % find peak FFT point 1m to 5m
     peak_x = Xaxis(x+round(1/Xaxis(2)));
     peak_positions(stepNumber) = peak_x;
+    peak_magnitudes(stepNumber) = y;
     disp('Distance of object based on FFT (m):')
-    disp(num2str(peak_x))    
+    disp(num2str(peak_x));
     
-    % Calculate SNR (you can read the details in the function scope below)
+    %% Calculate SNR (you can read the details in the function scope below)
     window = 0.8;
     snr = calculateSNR(P2, Xaxis, peak_x, window);
     SNRs(stepNumber) = snr;
