@@ -26,8 +26,8 @@ Fc = 1e6;        %Minimum frequency which dictates the number of steps ex 2Mhz s
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
-Phase_NoiseAndOffset    = [-80,100e3];  %Noise and Offset taken form data sheet
-Circulator_Isolation    = -20;          %Issolation in TX RX circulator coupling
+Phase_NoiseAndOffset    = [-80,100e3];  % Noise and Offset taken form data sheet
+Circulator_Isolation    = -20;          % Issolation in TX RX circulator coupling
 
 slant_length    = 0.0115787;% (m) slant lenght of antenna
 slant_angle     = 22;       % in degrees 
@@ -39,7 +39,7 @@ comm_perm       = 1.00;     % (e) Commodity permitivity
 air_perm        = 1;
 metal_perm      = 999;
 CALERROR        = true;     % non-linear calibration (deviations in callibration)
-call_dev        = 3.5e4;      % (Hz) Calibration deviation form ideal (random) 
+call_dev        = 3.5e4;    % (Hz) Calibration deviation form ideal (random) 
 %  End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -58,17 +58,17 @@ figure(1)
 
 
 
-%create a sine wave for every step with the given number of points
+%% Create a sine wave for every step with the given number of points
 for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
-       if CALERROR %Simulate small calibration errors if bool is true
+       if CALERROR % simulate small calibration errors if bool is true
        randomCallError = -call_dev + (call_dev).*rand(1,1);
        else
        randomCallError = 0;
        end
    I  = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
    Q  = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-   Z  = I + 1i*Q; %combine into a I Q type waveform
+   Z  = I + 1i*Q; % combine into an IQ type waveform
    wave(:,steps) = Z';
 end
 steps
@@ -81,7 +81,7 @@ target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'Pr
     'OperatingFrequency',fc);
 
 
-%%
+%% Channel
 % The propagation model is assumed to be free space.
 channel = phased.WidebandFreeSpace('PropagationSpeed',c,...
     'OperatingFrequency',fc,'SampleRate',fs,'TwoWayPropagation',true);
@@ -111,7 +111,7 @@ transmitter = phased.Transmitter('PeakPower',tx_power,'Gain',tx_gain);
 receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
     'SampleRate',fs);
 
-sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one wavefform
+sig_combined = combineSteps(wave,FreqSteps); % combine all steps into one wavefform
 
 %% Sweep:
 
@@ -119,7 +119,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
             
         %% Add any phase noise
         sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
-        plotSweepSpectrum(sig,fs); %Plot the Spectrogram
+        plotSweepSpectrum(sig,fs); % plot the Spectrogram
         disp('Sweeping')
         stepNumber
 
@@ -131,25 +131,25 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
         txInterface = txsig * LfspOneWay; 
         
         %% If there is slowhing,get an RCS value
-        rcs_comm = 4*pi^3*.25^4/lambda^2;% rcsSlosh(lambda,stepNumber,r,k)
+        rcs_comm = 4*pi^3*.25^4/lambda^2; % rcsSlosh(lambda,stepNumber,r,k)
        
         %% Calcualate and apply the return signal from commdity back to ant and the delay
         returnsig =  txInterface*reflectionCoeff(air_perm,comm_perm); %return signal 
         LfspOneWay = pathLoss(0,dist_comm,fc,c); 
         returnsig = returnsig*LfspOneWay;
         returnsig = delaySignal(returnsig,dist_comm*2,fs,c);
-        returnsig = returnsig*rcs_comm; %rcs here
+        returnsig = returnsig*rcs_comm; % rcs here
 
 
         
         %% Calcualate and apply the signal from commdity to bottom with delays
-        txInterfaceOil = txInterface*transmissionCoeff(air_perm,comm_perm);     %transmition wave
-        LfspTwoWay = pathLoss(dist_comm,tank_h*2,fc,c_comm); %path loss in medium 2 way
+        txInterfaceOil = txInterface*transmissionCoeff(air_perm,comm_perm); % transmition wave
+        LfspTwoWay = pathLoss(dist_comm,tank_h*2,fc,c_comm); % path loss in medium 2 way
         txInterfaceOil = txInterfaceOil*LfspTwoWay;
-        txInterfaceOil = txInterfaceOil*reflectionCoeff(comm_perm,metal_perm); %Reflect from bottom (mostly phase change of 180)
-        txInterfaceOil = txInterfaceOil*transmissionCoeff(comm_perm,air_perm);    %Reflect oil to air boundry going back 
-        txInterfaceOil = delaySignal(txInterfaceOil,(tank_h-dist_comm)*2,fs,c_comm); %delay in medium 2-way
-        txInterfaceOil = delaySignal(txInterfaceOil,(dist_comm)*2,fs,c); %return delay air
+        txInterfaceOil = txInterfaceOil*reflectionCoeff(comm_perm,metal_perm); % reflect from bottom (mostly phase change of 180)
+        txInterfaceOil = txInterfaceOil*transmissionCoeff(comm_perm,air_perm); % reflect oil to air boundry going back 
+        txInterfaceOil = delaySignal(txInterfaceOil,(tank_h-dist_comm)*2,fs,c_comm); % delay in medium 2-way
+        txInterfaceOil = delaySignal(txInterfaceOil,(dist_comm)*2,fs,c); % return delay air
         rcs = 4*pi^3*.25^4/lambda^2
         txInterfaceOil = txInterfaceOil*rcs; %rcs would go here
         
@@ -174,9 +174,9 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
 
  
  %% FilterDesigner LPF for filtering IQ jumps
- %Filter created in MATLAB filterdesigner to filter square jumps 
- %IQ_data: data to be filtered
- %Returns: IQ_data passed through a LPF
+ % Filter created in MATLAB filterdesigner to filter square jumps 
+ % IQ_data: data to be filtered
+ % Returns: IQ_data passed through a LPF
  function [filtered_data] = IQ_filter(IQ_data)
  % All frequency values are in Hz.
  Fs = 4000000000;  % Sampling Frequency
@@ -198,27 +198,24 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
 
 
  %% FFT Plotting and range (decimate,window,IFFT and plot the data)
- %speedOfLight: factor that was predefined
- %Fs: sample frequency
- %IQ_data: recived data
- %steps: number of steps the user entered
- %sweeptime: the sweeptime the user entered in seconds
- %stepSizeHz: step size in Hz of each step
- %Returns: combined signal at all steps 
+ % speedOfLight: factor that was predefined
+ % Fs: sample frequency
+ % IQ_data: recived data
+ % steps: number of steps the user entered
+ % sweeptime: the sweeptime the user entered in seconds
+ % stepSizeHz: step size in Hz of each step
+ % Returns: combined signal at all steps 
  function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz)
-    
-    
-  
     decimationFactor = length(IQ_data)/steps;
-    IQ_data = decimate(IQ_data,decimationFactor); %Apply decimation
+    IQ_data = decimate(IQ_data,decimationFactor); % apply decimation
     
     Delta_F_Hz = stepSizeHz;
     B = IQ_data;
-    L = length(B);        % Length of signal
+    L = length(B); % length of signal
     window = hann(L);
     B =  B.*window;  
     
-    L = round(speedOfLight/(Delta_F_Hz * 0.001 )+1); %res = 0.001 m
+    L = round(speedOfLight/(Delta_F_Hz * 0.001 )+1); % res = 0.001 m
 
     B = [B; complex(zeros(L-length(IQ_data), 1))];
     
@@ -227,7 +224,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
     Xaxis = Xaxis./2;
     Xaxis = Xaxis - Xaxis(1);
 
-    Y = ifft((B*L*decimationFactor)); %undo the IFFT division by N and decimation division
+    Y = ifft((B*L*decimationFactor)); % undo the IFFT division by N and decimation division
     P2 = abs(Y/L);
 
     figure(3)    
@@ -239,14 +236,14 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
     ylabel('|P1 db(m)|')
     title('SFCW IFFT Object Range and Magnitude');
     
-% Estimate Range
+    % Estimate Range
     [y,x] = max(mag2db(P2(round(1/Xaxis(2)):round(5/Xaxis(2))))); % find peak FFT point 1m to 5m
     disp('Distance of object based on FFT (m):')
     Xaxis(x+round(1/Xaxis(2)))
     
     % Calculate SNR (you can read the details in the function scope below)
     peak = Xaxis(x+round(1/Xaxis(2)));
-    window = 1.0;
+    window = 0.8;
     snr = calculateSNR(P2, Xaxis, peak, window);
     snr_disp = ['SNR: ', num2str(round(snr*100)/100), ' dB']; % round to 2 digits after decimal point
     disp(snr_disp)
@@ -258,7 +255,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
  %wave: the IQ waveform data
  %Returns: combined signal at all steps 
  function [combined] = combineSteps(wave,steps)
- disp('Combining Waveforms(this may take a bit)')
+ disp('Combining Waveforms... (this may take a bit)')
  wholesig = [] ;  
      for count = 1:steps
      sig =  wave(:,count);
@@ -273,7 +270,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
  %Returns: nothing
  function plotSweepSpectrum(data,fs)
  figure(2)
- data = complex(imag(data),real(data)); %Swap needed becuse spectrogram does FFT not IFFT
+ data = complex(imag(data),real(data)); % swap needed becuse spectrogram does FFT not IFFT
  spectrogram(data,32,16,32,fs,'yaxis');
  title('SFCW Signal Spectrogram/Sweep-time');
  end
@@ -345,7 +342,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
  
  
  %% Sloshing
-    % Dani code... need to comment
+ % Dani code... need to comment
  function [rcs] = rcsSlosh(lambda,m,r,k)
         aspect_angle = 0;
         i = 0;
@@ -370,7 +367,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
  
  end
  
-  %% SNR smart calculation
+ %% SNR smart calculation (Alex)
  % y_data (array, ?) : power from FFT
  % x_data (array, m) : values of x required to apply the window
  % peak_position (m) : actual distance to commodity acquired from FFT
@@ -378,7 +375,7 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
  % Returns: SNR in dB.
  function [snr_out] = calculateSNR(y_data, x_data, peak_position, window)
     % Temporary plot for debugging purposes:
-    figure(13)
+    figure(10)
     plot(x_data, y_data);
     axis([0 (peak_position + window) -1 9])
     
@@ -419,5 +416,4 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
     %% Output SNR in dB:
     snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
  end
- 
  
