@@ -342,6 +342,7 @@ end
  % window (m)        : the range away from the peak to be used in avg noise power calculation
  % Returns: SNR in dB.
  function [snr_out] = calculateSNR(y_data, x_data, peak_position, window)
+    % Temporary plot for debugging purposes:
     figure(3)
     plot(x_data, y_data);
     axis([0 (peak_position + window) -1 9])
@@ -380,6 +381,6 @@ end
     noise_data_right = y_data(marker_right : window_index_right);
     noise_average    = (mean(noise_data_left) + mean(noise_data_right))/2;
     
-    % Output SNR in dB:
+    %% Output SNR in dB:
     snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
  end
