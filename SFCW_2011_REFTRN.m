@@ -68,7 +68,6 @@ for steps = 1:FreqSteps
    Z  = I + 1i*Q; % combine into an IQ type waveform
    wave(:,steps) = Z';
 end
-% steps <---- what is this?
 
 
 %% Target Model
@@ -124,35 +123,35 @@ for stepNumber = 1:Nsweep
     txsig = step(transmitter,sig);
 
     %% Calcualate and apply pathloss in air to the transmitted signal from ant to commdity
-    LfspOneWay = pathLoss(0,dist_comm,fc,c); 
+    LfspOneWay  = pathLoss(0,dist_comm,fc,c); 
     txInterface = txsig * LfspOneWay; 
 
     %% If there is slowhing,get an RCS value
     rcs_comm = 4*pi^3*.25^4/lambda^2; % rcsSlosh(lambda,stepNumber,r,k)
 
     %% Calcualate and apply the return signal from commdity back to ant and the delay
-    returnsig =  txInterface*reflectionCoeff(air_perm,comm_perm); %return signal 
+    returnsig  =  txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
     LfspOneWay = pathLoss(0,dist_comm,fc,c); 
-    returnsig = returnsig*LfspOneWay;
-    returnsig = delaySignal(returnsig,dist_comm*2,fs,c);
-    returnsig = returnsig*rcs_comm; % rcs here
+    returnsig  = returnsig*LfspOneWay;
+    returnsig  = delaySignal(returnsig,dist_comm*2,fs,c);
+    returnsig  = returnsig*rcs_comm; % rcs here
 
 
 
     %% Calcualate and apply the signal from commdity to bottom with delays
     txInterfaceOil = txInterface*transmissionCoeff(air_perm,comm_perm); % transmition wave
-    LfspTwoWay = pathLoss(dist_comm,tank_h*2,fc,c_comm); % path loss in medium 2 way
+    LfspTwoWay     = pathLoss(dist_comm,tank_h*2,fc,c_comm); % path loss in medium 2 way
     txInterfaceOil = txInterfaceOil*LfspTwoWay;
     txInterfaceOil = txInterfaceOil*reflectionCoeff(comm_perm,metal_perm); % reflect from bottom (mostly phase change of 180)
     txInterfaceOil = txInterfaceOil*transmissionCoeff(comm_perm,air_perm); % reflect oil to air boundry going back 
     txInterfaceOil = delaySignal(txInterfaceOil,(tank_h-dist_comm)*2,fs,c_comm); % delay in medium 2-way
     txInterfaceOil = delaySignal(txInterfaceOil,(dist_comm)*2,fs,c); % return delay air
     rcs = 4*pi^3*.25^4/lambda^2
-    txInterfaceOil = txInterfaceOil*rcs; %rcs would go here
+    txInterfaceOil = txInterfaceOil*rcs; % rcs would go here
 
 
     %% Combined recived signal from commodity and bottom
-    rxsig =    txInterfaceOil + returnsig;
+    rxsig = txInterfaceOil + returnsig;
 
     %% Received radar return with gain
     rxsig = step(receiver,rxsig);
@@ -161,7 +160,7 @@ for stepNumber = 1:Nsweep
     rxsig = circulator(Circulator_Isolation,txsig,rxsig);
 
     dechirpsig       = dechirp(rxsig,txsig);
-    dechirpsig       = IQ_filter(dechirpsig); %Fillter the data through a LPF
+    dechirpsig       = IQ_filter(dechirpsig); % filter the data through a LPF
 
     %% Plot FFT
     FFT_range(c,fs,dechirpsig,FreqSteps,BW,tot_sweep_time,Fc,stepNumber,Nsweep)
@@ -169,7 +168,7 @@ end
 
 
  %% FilterDesigner LPF for filtering IQ jumps
- % Filter created in MATLAB filterdesigner to filter square jumps 
+ % Filter created in MATLAB filterDesigner to filter square jumps 
  % IQ_data: data to be filtered
  % Returns: IQ_data passed through a LPF
  function [filtered_data] = IQ_filter(IQ_data)
@@ -203,7 +202,7 @@ end
  % Nsweep: number of sweeps
  % Returns: combined signal at all steps 
  function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz,stepNumber,Nsweep)
-    %% Statistical data:
+    %% Statistical data (Alex):
     % This stuff is populated with every sweep and processed later to obtain
     % standard deviations and average values.
     persistent peak_positions peak_magnitudes SNRs
@@ -245,12 +244,12 @@ end
     title('SFCW IFFT Object Range and Magnitude');
     
     %% Estimate Range
-    [y,x] = max(mag2db(P2(round(1/Xaxis(2)):round(5/Xaxis(2))))); % find peak FFT point 1m to 5m
+    [y,x] = max(mag2db(P2(round(1/Xaxis(2)):round(5/Xaxis(2))))); % find peak FFT point between 1m to 5m
     peak_x = Xaxis(x+round(1/Xaxis(2)));
     peak_positions(stepNumber) = peak_x;
     peak_magnitudes(stepNumber) = y;
     disp('Distance of object based on FFT (m):')
-    disp(num2str(peak_x));
+    disp(num2str(peak_x))
     
     %% Calculate SNR (you can read the details in the function scope below)
     window = 0.8;
@@ -259,7 +258,7 @@ end
     snr_disp = ['SNR: ', num2str(round(snr*100)/100), ' dB']; % round to 2 digits after decimal point
     disp(snr_disp)
     
-    %% Output statistical data:
+    %% Output statistical data (Alex):
     if stepNumber == Nsweep
         % Everything is rounded to 2 digits after decimal point.
         peak_positions_std_dev = round(std(peak_positions)*100)/100;
@@ -273,9 +272,9 @@ end
  end
 
  %% Combining the steps in the waveform by combinbing each step
- %steps: number of steps in the waveform
- %wave: the IQ waveform data
- %Returns: combined signal at all steps 
+ % steps: number of steps in the waveform
+ % wave: the IQ waveform data
+ % Returns: combined signal at all steps 
  function [combined] = combineSteps(wave,steps)
  disp('Combining Waveforms... (this may take a bit)')
  wholesig = [] ;  
@@ -287,9 +286,9 @@ end
  end
  
  %% Plotting Spectrogram
- %fs: is sampling frequency
- %data: is the IQ data to be ploted
- %Returns: nothing
+ % fs: is sampling frequency
+ % data: is the IQ data to be ploted
+ % Returns: nothing
  function plotSweepSpectrum(data,fs)
  figure(1)
  data = complex(imag(data),real(data)); % swap needed becuse spectrogram does FFT not IFFT
@@ -298,10 +297,10 @@ end
  end
   
  %% Adding IQ phasenoise
- %IQ_Data: is the original data to apply phase noise to
- %PhaseNoise: the ammount of phase noise to add in db
- %Offset: frequency offsets to apply phase noise to (Hz)
- %Returns: a phase noise mixed version of the IQ data
+ % IQ_Data: is the original data to apply phase noise to
+ % PhaseNoise: the ammount of phase noise to add in db
+ % Offset: frequency offsets to apply phase noise to (Hz)
+ % Returns: a phase noise mixed version of the IQ data
  function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
  pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
      'SampleRate',2*Offset);
@@ -311,50 +310,50 @@ end
  end
 
  %% Adding Circulator Coupling (RX TX coupling)
- %isolation: dB of issolation between the circulator
- %initial: the TX signal
- %target: the RX signal
- %Returns: the initial recived signal with a portion of the TX signal 
+ % isolation: dB of issolation between the circulator
+ % initial: the TX signal
+ % target: the RX signal
+ % Returns: the initial recived signal with a portion of the TX signal 
  function [txsig_out] = circulator(isolation, initial, target)
     isolation = 10^(isolation/10); % convert from db to linear
     txsig_out = target + isolation * initial;
  end
  
  %% Calculate Free Space Loss
- %startingDistance: dB of issolation between the circulator
- %endingDistance: the TX signal
- %frequency: the RX signal
- %c: speed of light in medium
- %Returns: the initial recived signal with a portion of the TX signal 
+ % startingDistance: dB of issolation between the circulator
+ % endingDistance: the TX signal
+ % frequency: the RX signal
+ % c: speed of light in medium
+ % Returns: the initial recived signal with a portion of the TX signal 
  function [pathloss_linear,pathloss_db] = pathLoss(startingDistance, endingDistance, frequency,c)
  pathloss_db  = 20*log10(endingDistance-startingDistance)+20*log10(frequency)+20*log10((4*pi)/c);
  pathloss_linear = (10^((-pathloss_db)/20));
  end
  
  %% Calculate reflection coeffeciant
- %n1: dielectric on side(1) entering
- %n2: dielectric on side(2) exiting
- %Returns: the reflection coeffeciant
+ % n1: dielectric on side(1) entering
+ % n2: dielectric on side(2) exiting
+ % Returns: the reflection coeffeciant
  function [refCoeff] = reflectionCoeff(n1_enter, n2_exit)
  refCoeff  = (sqrt(n1_enter) - sqrt(n2_exit))/(sqrt(n1_enter) + sqrt(n2_exit)); 
  end
  
  
  %% Calculate transmision coeffeciant
- %n1: dielectric on side(1) entering
- %n2: dielectric on side(2) exiting
- %Returns: the transmition coeffeciant
+ % n1: dielectric on side(1) entering
+ % n2: dielectric on side(2) exiting
+ % Returns: the transmition coeffeciant
  function [trnCoeff] = transmissionCoeff(n1_enter, n2_exit)
  trnCoeff  = (2*sqrt(n1_enter)/(sqrt(n1_enter) + sqrt(n2_exit))); 
  end
  
   
  %% Calculate signal delay and delay and array
- %distance: distance to apply delay
- %SignalIQ: Signal to apply fractional delay
- %fs: system sample rate
- %c: speed of light in medium
- %Returns: a delayed version of the signal
+ % distance: distance to apply delay
+ % SignalIQ: Signal to apply fractional delay
+ % fs: system sample rate
+ % c: speed of light in medium
+ % Returns: a delayed version of the signal
  function [delayedIQ] = delaySignal(SignalIQ,distance,fs,c)
  delay =  distance/c;
  delayFs = delay*fs;
