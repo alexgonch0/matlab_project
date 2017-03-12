@@ -344,12 +344,8 @@ sig_combined = combineSteps(wave,FreqSteps); %Combine all steps into one waveffo
  end
  
  
- %% Calculate signal delay and delay and array
- %distance: distance to apply delay
- %SignalIQ: Signal to apply fractional delay
- %fs: system sample rate
- %c: speed of light in medium
- %Returns: a delayed version of the signal
+ %% Sloshing
+    % Dani code... need to comment
  function [rcs] = rcsSlosh(lambda,m,r,k)
         aspect_angle = 0;
         i = 0;
