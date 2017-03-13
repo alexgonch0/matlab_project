@@ -18,7 +18,7 @@
 %% User Entry Here
 fc = 24e9;       % 24 GHz is the system operating frequency
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
-Nsweep = 4;      % Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 10;      % Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        % 2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
 Fc = 1e6;        % Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
@@ -39,7 +39,7 @@ comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
 CALERROR        = true;      % non-linear calibration (deviations in callibration)
-call_dev        = 3.5e4;     % (Hz) Calibration deviation form ideal (random) 
+call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random) 
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -52,8 +52,9 @@ fs = BW*2;              % sampling frequency at 2Fs = 4Ghz
 tot_points = fs*tot_sweep_time; % points for given sweep time
 points_per_step = tot_points/FreqSteps;
 L = points_per_step;
-wave = zeros(L,FreqSteps);
+%wave = zeros(L,FreqSteps);
 
+wave = [] ;
 
 %% Create a sine wave for every step with the given number of points
 for steps = 1:FreqSteps
@@ -66,8 +67,10 @@ for steps = 1:FreqSteps
    I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
    Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
    Z = I + 1i*Q; % combine into an IQ type waveform
-   wave(:,steps) = Z';
+   %wave(:,steps) = Z';
+   wave = vertcat(wave,Z');
 end
+
 
 
 %% Target Model
@@ -107,7 +110,7 @@ transmitter = phased.Transmitter('PeakPower',tx_power,'Gain',tx_gain);
 receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
     'SampleRate',fs);
 
-sig_combined = combineSteps(wave,FreqSteps); % combine all steps into one wavefform
+sig_combined = wave;% combineSteps(wave,FreqSteps); % combine all steps into one wavefform
 
 
 %% Sweep:
@@ -118,7 +121,10 @@ for stepNumber = 1:Nsweep
     plotSweepSpectrum(sig,fs); % plot the Spectrogram
     disp('Sweeping')
     stepNumber
-
+    
+    %% Add cal drift
+    sig = DriftCalibraton(sig,150,FreqSteps);
+    
     %% Setup the TX signal
     txsig = step(transmitter,sig);
 
@@ -127,7 +133,7 @@ for stepNumber = 1:Nsweep
     txInterface = txsig * LfspOneWay; 
 
     %% If there is slowhing, get an RCS value
-    rcs_comm = 4*pi^3*.25^4/lambda^2; % rcsSlosh(lambda,stepNumber,r,k)
+    rcs_comm = 4*pi^3*.45^4/lambda^2; % rcsSlosh(lambda,stepNumber,r,k)
 
     %% Calculate and apply the return signal from commdity back to ant and the delay
     returnsig  =  txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
@@ -146,7 +152,7 @@ for stepNumber = 1:Nsweep
     txInterfaceOil = txInterfaceOil*transmissionCoeff(comm_perm,air_perm); % reflect oil to air boundry going back 
     txInterfaceOil = delaySignal(txInterfaceOil,(tank_h-dist_comm)*2,fs,c_comm); % delay in medium 2-way
     txInterfaceOil = delaySignal(txInterfaceOil,(dist_comm)*2,fs,c); % return delay air
-    rcs = 4*pi^3*.25^4/lambda^2
+    rcs = 4*pi^3*.45^4/lambda^2
     txInterfaceOil = txInterfaceOil*rcs; % rcs would go here
 
 
@@ -263,8 +269,8 @@ end
     %% Output statistical data:
     if stepNumber == Nsweep
         % Everything is rounded to 2 digits after decimal point.
-        peak_positions_std_dev = std(peak_positions)*1000;
-        peak_magnitudes_std_dev = std(peak_magnitudes)*1000;
+        peak_positions_std_dev = std(peak_positions);
+        peak_magnitudes_std_dev = std(peak_magnitudes);
         SNRs_mean = round(mean(SNRs)*100)/100;
         stats_disp = ['Peak positions std dev: ', num2str(peak_positions_std_dev), ' mm', ...
                      ' Peak magnitudes std dev: ', num2str(peak_magnitudes_std_dev), ' mm', ...
@@ -440,4 +446,17 @@ end
     %% Output SNR in dB:
     snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
  end
+ 
+  %% Drift
+ % drift the pre calibrated wave by a very small random frequency
+ % divieation
+ function [IQwave] = DriftCalibraton(IQwaveGiven,driftError,FreqSteps)
+     L = length(IQwaveGiven);
+     for steps = 1:L
+     randomCallError = -driftError/100 + (driftError/100).*rand(1,1);   
+     IQwaveGiven(steps)   =  IQwaveGiven(steps)*randomCallError + IQwaveGiven(steps);
+     end
+     IQwave = IQwaveGiven;
+ end
+ 
  
