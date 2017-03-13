@@ -18,7 +18,7 @@
 %% User Entry Here
 fc = 24e9;       % 24 GHz is the system operating frequency
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
-Nsweep = 10;      % Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 10;     % Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        % 2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
 Fc = 1e6;        % Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
@@ -273,7 +273,7 @@ end
         peak_magnitudes_std_dev = std(peak_magnitudes);
         SNRs_mean = round(mean(SNRs)*100)/100;
         stats_disp = ['Peak positions std dev: ', num2str(peak_positions_std_dev), ' mm', ...
-                     ' Peak magnitudes std dev: ', num2str(peak_magnitudes_std_dev), ' db', ...
+                     ' Peak magnitudes std dev: ', num2str(peak_magnitudes_std_dev), ' dB', ...
                      ' Average SNR: ', num2str(SNRs_mean), ' dB'];
         disp(stats_disp)
     end
