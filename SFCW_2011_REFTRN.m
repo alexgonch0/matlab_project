@@ -17,7 +17,7 @@
 
 %% User Entry Here
 fc = 24e9;       % 24 GHz is the system operating frequency
-c = 1/ sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
+c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
 Nsweep = 4;      % Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        % 2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
@@ -45,7 +45,7 @@ call_dev        = 3.5e4;     % (Hz) Calibration deviation form ideal (random)
 
 
 
-%% Start Sweep Code here:
+%% Start Sweep Code
 lambda = c/fc;          % wavelength
 FreqSteps = BW/Fc;      % calculate number of steps
 fs = BW*2;              % sampling frequency at 2Fs = 4Ghz
@@ -59,13 +59,13 @@ wave = zeros(L,FreqSteps);
 for steps = 1:FreqSteps
    t = [0:1:points_per_step-1];
        if CALERROR % simulate small calibration errors if bool is true
-       randomCallError = -call_dev + (call_dev).*rand(1,1);
+           randomCallError = -call_dev + (call_dev).*rand(1,1);
        else
-       randomCallError = 0;
+           randomCallError = 0;
        end
-   I  = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-   Q  = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-   Z  = I + 1i*Q; % combine into an IQ type waveform
+   I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+   Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+   Z = I + 1i*Q; % combine into an IQ type waveform
    wave(:,steps) = Z';
 end
 
@@ -159,8 +159,8 @@ for stepNumber = 1:Nsweep
     %% Add coupling
     rxsig = circulator(Circulator_Isolation,txsig,rxsig);
 
-    dechirpsig       = dechirp(rxsig,txsig);
-    dechirpsig       = IQ_filter(dechirpsig); % filter the data through a LPF
+    dechirpsig = dechirp(rxsig,txsig);
+    dechirpsig = IQ_filter(dechirpsig); % filter the data through a LPF
 
     %% Plot FFT
     FFT_range(c,fs,dechirpsig,FreqSteps,BW,tot_sweep_time,Fc,stepNumber,Nsweep)
@@ -212,7 +212,7 @@ end
         SNRs            = zeros(Nsweep, 1);
     end
     
-    %% FFT
+    %% FFT:
     decimationFactor = length(IQ_data)/steps;
     IQ_data = decimate(IQ_data,decimationFactor); % apply decimation
     
@@ -243,22 +243,24 @@ end
     ylabel('|P1 db(m)|')
     title('SFCW IFFT Object Range and Magnitude');
     
-    %% Estimate Range
+    %% Estimate Range:
     [y,x] = max(mag2db(P2(round(1/Xaxis(2)):round(5/Xaxis(2))))); % find peak FFT point between 1m to 5m
     peak_x = Xaxis(x+round(1/Xaxis(2)));
-    peak_positions(stepNumber) = peak_x;
-    peak_magnitudes(stepNumber) = y;
     disp('Distance of object based on FFT (m):')
     disp(num2str(peak_x))
     
-    %% Calculate SNR (you can read the details in the function scope below)
+    %% Calculate SNR:
     window = 0.8;
     snr = calculateSNR(P2, Xaxis, peak_x, window);
-    SNRs(stepNumber) = snr;
     snr_disp = ['SNR: ', num2str(round(snr*100)/100), ' dB']; % round to 2 digits after decimal point
     disp(snr_disp)
     
-    %% Output statistical data (Alex):
+    %% Store statistical data:
+    peak_positions(stepNumber)  = peak_x;
+    peak_magnitudes(stepNumber) = y;
+    SNRs(stepNumber)            = snr;
+    
+    %% Output statistical data:
     if stepNumber == Nsweep
         % Everything is rounded to 2 digits after decimal point.
         peak_positions_std_dev = round(std(peak_positions)*100)/100;
@@ -286,12 +288,12 @@ end
  end
  
  %% Plotting Spectrogram
- % fs: is sampling frequency
- % data: is the IQ data to be ploted
+ % fs: sampling frequency
+ % data: the IQ data to be ploted
  % Returns: nothing
  function plotSweepSpectrum(data,fs)
  figure(1)
- data = complex(imag(data),real(data)); % swap needed becuse spectrogram does FFT not IFFT
+ data = complex(imag(data),real(data)); % swap needed because spectrogram does FFT not IFFT
  spectrogram(data,32,16,32,fs,'yaxis');
  title('SFCW Signal Spectrogram/Sweep-time');
  end
@@ -302,8 +304,7 @@ end
  % Offset: frequency offsets to apply phase noise to (Hz)
  % Returns: a phase noise mixed version of the IQ data
  function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
- pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, ...
-     'SampleRate',2*Offset);
+ pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, 'SampleRate',2*Offset);
  IQ_Data_noise = step(pnoise,IQ_Data);
  %WhiteNoise    = awgn(IQ_Data_noise,1,.01);
  %IQ_Data_noise = WhiteNoise;
@@ -335,7 +336,7 @@ end
  % n2: dielectric on side(2) exiting
  % Returns: the reflection coeffeciant
  function [refCoeff] = reflectionCoeff(n1_enter, n2_exit)
- refCoeff  = (sqrt(n1_enter) - sqrt(n2_exit))/(sqrt(n1_enter) + sqrt(n2_exit)); 
+ refCoeff = (sqrt(n1_enter) - sqrt(n2_exit))/(sqrt(n1_enter) + sqrt(n2_exit)); 
  end
  
  
@@ -344,7 +345,7 @@ end
  % n2: dielectric on side(2) exiting
  % Returns: the transmition coeffeciant
  function [trnCoeff] = transmissionCoeff(n1_enter, n2_exit)
- trnCoeff  = (2*sqrt(n1_enter)/(sqrt(n1_enter) + sqrt(n2_exit))); 
+ trnCoeff = (2*sqrt(n1_enter)/(sqrt(n1_enter) + sqrt(n2_exit))); 
  end
  
   
@@ -355,7 +356,7 @@ end
  % c: speed of light in medium
  % Returns: a delayed version of the signal
  function [delayedIQ] = delaySignal(SignalIQ,distance,fs,c)
- delay =  distance/c;
+ delay = distance/c;
  delayFs = delay*fs;
  fracDelay = dsp.VariableFractionalDelay;
  delayedIQ = fracDelay(SignalIQ,delayFs);
