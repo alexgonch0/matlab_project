@@ -33,14 +33,14 @@ slant_length    = 0.0115787; % (m) slant lenght of antenna
 slant_angle     = 22;        % in degrees 
 phys_ant_d      = 0.0381;
 
-dist_comm       = 1.00;      % (m) distance between the radar and commodity surface
+dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
 tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
 CALERROR        = true;      % non-linear calibration (deviations in callibration)
 call_dev        = 3.5e4;     % (Hz) Calibration deviation form ideal (random) 
-%  End User Entry                     
+% End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -113,7 +113,7 @@ sig_combined = combineSteps(wave,FreqSteps); % combine all steps into one waveff
 %% Sweep:
 for stepNumber = 1:Nsweep
 
-    %% Add any phase noise
+    %% Add phase noise
     sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
     plotSweepSpectrum(sig,fs); % plot the Spectrogram
     disp('Sweeping')
@@ -126,10 +126,10 @@ for stepNumber = 1:Nsweep
     LfspOneWay  = pathLoss(0,dist_comm,fc,c); 
     txInterface = txsig * LfspOneWay; 
 
-    %% If there is slowhing,get an RCS value
+    %% If there is slowhing, get an RCS value
     rcs_comm = 4*pi^3*.25^4/lambda^2; % rcsSlosh(lambda,stepNumber,r,k)
 
-    %% Calcualate and apply the return signal from commdity back to ant and the delay
+    %% Calculate and apply the return signal from commdity back to ant and the delay
     returnsig  =  txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
     LfspOneWay = pathLoss(0,dist_comm,fc,c); 
     returnsig  = returnsig*LfspOneWay;
@@ -138,7 +138,7 @@ for stepNumber = 1:Nsweep
 
 
 
-    %% Calcualate and apply the signal from commdity to bottom with delays
+    %% Calculate and apply the signal from commdity to bottom with delays
     txInterfaceOil = txInterface*transmissionCoeff(air_perm,comm_perm); % transmition wave
     LfspTwoWay     = pathLoss(dist_comm,tank_h*2,fc,c_comm); % path loss in medium 2 way
     txInterfaceOil = txInterfaceOil*LfspTwoWay;
@@ -156,7 +156,7 @@ for stepNumber = 1:Nsweep
     %% Received radar return with gain
     rxsig = step(receiver,rxsig);
 
-    %% Add Coupling
+    %% Add coupling
     rxsig = circulator(Circulator_Isolation,txsig,rxsig);
 
     dechirpsig       = dechirp(rxsig,txsig);
@@ -173,10 +173,10 @@ end
  % Returns: IQ_data passed through a LPF
  function [filtered_data] = IQ_filter(IQ_data)
  % All frequency values are in Hz.
- Fs = 4000000000;  % Sampling Frequency
+ Fs = 4e9;    % Sampling Frequency
 
- N  = 25;      % Order
- Fc = 350000;  % Cutoff Frequency
+ N  = 25;     % Order
+ Fc = 350000; % Cutoff Frequency
 
  % Construct an FDESIGN object and call its BUTTER method.
  h  = fdesign.lowpass('N,F3dB', N, Fc, Fs);
