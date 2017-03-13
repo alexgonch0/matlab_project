@@ -263,11 +263,11 @@ end
     %% Output statistical data:
     if stepNumber == Nsweep
         % Everything is rounded to 2 digits after decimal point.
-        peak_positions_std_dev = round(std(peak_positions)*100)/100;
-        peak_magnitudes_std_dev = round(std(peak_magnitudes)*100)/100;
+        peak_positions_std_dev = std(peak_positions)*1000;
+        peak_magnitudes_std_dev = std(peak_magnitudes)*1000;
         SNRs_mean = round(mean(SNRs)*100)/100;
-        stats_disp = ['Peak positions std dev: ', num2str(peak_positions_std_dev), ...
-                     ' Peak magnitudes std dev: ', num2str(peak_magnitudes_std_dev), ...
+        stats_disp = ['Peak positions std dev: ', num2str(peak_positions_std_dev), ' mm', ...
+                     ' Peak magnitudes std dev: ', num2str(peak_magnitudes_std_dev), ' mm', ...
                      ' Average SNR: ', num2str(SNRs_mean), ' dB'];
         disp(stats_disp)
     end
