@@ -21,12 +21,12 @@ c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e
 Nsweep = 10;     % Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
-Fc = 1e6;        % ???
+Fc = 1e6;        % Frequency step size
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
-Phase_NoiseAndOffset    = [-80,100e3];  % Noise and Offset taken form data sheet
-Circulator_Isolation    = -20;          % Issolation in TX RX circulator coupling
+Phase_NoiseAndOffset = [-80,100e3]; % Noise and Offset taken form data sheet
+Circulator_Isolation = -20;         % Issolation in TX RX circulator coupling
 
 slant_length    = 0.0115787; % (m) slant lenght of antenna
 slant_angle     = 22;        % (degrees) slant angle
@@ -37,6 +37,7 @@ tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
+sweepType       = 'up';
 CALERROR        = true;      % non-linear calibration (deviations in calibration)
 call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
@@ -54,7 +55,7 @@ L = points_per_step;
 %wave = zeros(L,FreqSteps);
 
 %% Acquire a sine way for the sweep
-wave = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, 'up');
+wave = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType);
 
 %% Target Model
 rcs_comm = db2pow(min(10*log10(dist_comm)+5,20)); %RCS
@@ -178,14 +179,14 @@ end
 
  
  %% Creating a sine wave for every step with the given number of points
- % Fc (Hz): ???
+ % Fc (Hz): frequency step size
  % BW (Hz): system Bandwidth
  % freqSteps: number of frequency steps in one sweep
- % points_per_step: number of points (details?) in one step
+ % points_per_step: number of points in one step
  % call_dev (Hz): Calibration deviation form ideal (random) 
  % CALERROR (bool): calibration ON/OFF flag
  % sweepType: waveform of the sweep
- % Returns: wave (details?)
+ % Returns (V): wave
  function [wave] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType)
     wave = [];
     
@@ -205,7 +206,19 @@ end
                wave = vertcat(wave,Z');
             end
         case 'down'
-            % TO DO
+            for steps = freqSteps:1
+               t = 0:1:(points_per_step - 1);
+                   if CALERROR % simulate small calibration errors if bool is true
+                       randomCallError = -call_dev + (call_dev).*rand(1,1);
+                   else
+                       randomCallError = 0;
+                   end
+               I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+               Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+               Z = I + 1i*Q; % combine into an IQ type waveform
+               %wave(:,steps) = Z';
+               wave = vertcat(wave,Z');
+            end
         case 'elliptic_up'
             % TO DO
         otherwise
@@ -256,8 +269,8 @@ end
     Y = ifft((B*L*decimationFactor)); % undo the IFFT division by N and decimation division
     P2 = abs(Y/L);
     
-    figure(2)    
-    plot(Xaxis,mag2db(P2)) 
+    figure(2)
+    plot(Xaxis,mag2db(P2))
     hold on
     axis([0 10 -40 40])
     title('Range Power Plot')
@@ -412,7 +425,7 @@ end
  end
  
  %% SNR smart calculation (Alex)
- % y_data (array, ?) : power from FFT
+ % y_data (array, ?) : ? from FFT
  % x_data (array, m) : values of x required to apply the window
  % peak_position (m) : actual distance to commodity acquired from FFT
  % window (m)        : the range away from the peak to be used in avg noise power calculation
