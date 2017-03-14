@@ -20,9 +20,8 @@ fc = 24e9;       % 24 GHz is the system operating frequency
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
 Nsweep = 10;     % Number of sweep for the radar to perform with the radar (overlap the plots)
 
-BW = 2e9;        % 2Ghz System Bandwidth (higer bandwidth provide better resolution for target range
-Fc = 1e6;        % Minimum frequency which dictates the number of steps ex 2Mhz so we hvae 1000 steps
-                 % which also increases the range resolution 
+BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
+Fc = 1e6;        % ???
                     
 tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
 
@@ -30,7 +29,7 @@ Phase_NoiseAndOffset    = [-80,100e3];  % Noise and Offset taken form data sheet
 Circulator_Isolation    = -20;          % Issolation in TX RX circulator coupling
 
 slant_length    = 0.0115787; % (m) slant lenght of antenna
-slant_angle     = 22;        % in degrees 
+slant_angle     = 22;        % (degrees) slant angle
 phys_ant_d      = 0.0381;
 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
@@ -38,8 +37,8 @@ tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
-CALERROR        = true;      % non-linear calibration (deviations in callibration)
-call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random) 
+CALERROR        = true;      % non-linear calibration (deviations in calibration)
+call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -47,38 +46,21 @@ call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random)
 
 %% Start Sweep Code
 lambda = c/fc;          % wavelength
-FreqSteps = BW/Fc;      % calculate number of steps
+freqSteps = BW/Fc;      % calculate number of steps
 fs = BW*2;              % sampling frequency at 2Fs = 4Ghz
 tot_points = fs*tot_sweep_time; % points for given sweep time
-points_per_step = tot_points/FreqSteps;
+points_per_step = tot_points/freqSteps;
 L = points_per_step;
 %wave = zeros(L,FreqSteps);
 
-wave = [] ;
-
-%% Create a sine wave for every step with the given number of points
-for steps = 1:FreqSteps
-   t = [0:1:points_per_step-1];
-       if CALERROR % simulate small calibration errors if bool is true
-           randomCallError = -call_dev + (call_dev).*rand(1,1);
-       else
-           randomCallError = 0;
-       end
-   I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-   Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-   Z = I + 1i*Q; % combine into an IQ type waveform
-   %wave(:,steps) = Z';
-   wave = vertcat(wave,Z');
-end
-
-
+%% Acquire a sine way for the sweep
+wave = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, 'up');
 
 %% Target Model
 rcs_comm = db2pow(min(10*log10(dist_comm)+5,20)); %RCS
 c_comm = 1/ sqrt((4*pi*10^-7)*(8.854*10^-12)*(comm_perm)); %Propagation speed calculation for comm
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c_comm,...
     'OperatingFrequency',fc);
-
 
 %% Channel
 % The propagation model is assumed to be free space.
@@ -107,9 +89,7 @@ rx_gain  = 25+ant_gain;                         % RX LNA gain in dB
 rx_nf    = 3;                                   % Noise Figure in dB
 
 transmitter = phased.Transmitter('PeakPower',tx_power,'Gain',tx_gain);
-receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,...
-    'SampleRate',fs);
-
+receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,'SampleRate',fs);
 sig_combined = wave;% combineSteps(wave,FreqSteps); % combine all steps into one wavefform
 
 
@@ -120,10 +100,10 @@ for stepNumber = 1:Nsweep
     sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
     plotSweepSpectrum(sig,fs); % plot the Spectrogram
     disp('Sweeping')
-    stepNumber
+    disp(num2str(stepNumber));
     
     %% Add cal drift
-    sig = DriftCalibraton(sig,150,FreqSteps);
+    sig = DriftCalibraton(sig,150,freqSteps);
     
     %% Setup the TX signal
     txsig = step(transmitter,sig);
@@ -136,7 +116,7 @@ for stepNumber = 1:Nsweep
     rcs_comm = 4*pi^3*.45^4/lambda^2; % rcsSlosh(lambda,stepNumber,r,k)
 
     %% Calculate and apply the return signal from commdity back to ant and the delay
-    returnsig  =  txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
+    returnsig  = txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
     LfspOneWay = pathLoss(0,dist_comm,fc,c); 
     returnsig  = returnsig*LfspOneWay;
     returnsig  = delaySignal(returnsig,dist_comm*2,fs,c);
@@ -169,7 +149,7 @@ for stepNumber = 1:Nsweep
     dechirpsig = IQ_filter(dechirpsig); % filter the data through a LPF
 
     %% Plot FFT
-    FFT_range(c,fs,dechirpsig,FreqSteps,BW,tot_sweep_time,Fc,stepNumber,Nsweep)
+    FFT_range(c,fs,dechirpsig,freqSteps,BW,tot_sweep_time,Fc,stepNumber,Nsweep)
 end
 
 
@@ -196,6 +176,42 @@ end
  %plot(imag(output))
  end
 
+ 
+ %% Creating a sine wave for every step with the given number of points
+ % Fc (Hz): ???
+ % BW (Hz): system Bandwidth
+ % freqSteps: number of frequency steps in one sweep
+ % points_per_step: number of points (details?) in one step
+ % call_dev (Hz): Calibration deviation form ideal (random) 
+ % CALERROR (bool): calibration ON/OFF flag
+ % sweepType: waveform of the sweep
+ % Returns: wave (details?)
+ function [wave] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType)
+    wave = [];
+    
+    switch sweepType
+        case 'up'
+            for steps = 1:freqSteps
+               t = 0:1:(points_per_step - 1);
+                   if CALERROR % simulate small calibration errors if bool is true
+                       randomCallError = -call_dev + (call_dev).*rand(1,1);
+                   else
+                       randomCallError = 0;
+                   end
+               I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+               Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+               Z = I + 1i*Q; % combine into an IQ type waveform
+               %wave(:,steps) = Z';
+               wave = vertcat(wave,Z');
+            end
+        case 'down'
+            % TO DO
+        case 'elliptic_up'
+            % TO DO
+        otherwise
+            error('Non-existent sweep type has been defined. Terminating...');
+    end     
+ end
 
  %% FFT Plotting and range (decimate,window,IFFT and plot the data)
  % speedOfLight: factor that was predefined
@@ -447,9 +463,8 @@ end
     snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
  end
  
-  %% Drift
- % drift the pre calibrated wave by a very small random frequency
- % divieation
+ %% Drift
+ % drift the precalibrated wave by a very small random frequency deviation
  function [IQwave] = DriftCalibraton(IQwaveGiven,driftError,FreqSteps)
      L = length(IQwaveGiven);
      for steps = 1:L
