@@ -18,12 +18,12 @@
 %% User Entry Here
 fc = 24e9;       % 24 GHz is the system operating frequency
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
-Nsweep = 10;     % Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 1;     % Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
-Fc = 1e6;        % Frequency step size
+Fc = 2e6;        % Frequency step size
                     
-tot_sweep_time  = 1e-3;  % (s) long sweep times create large signal arrays (slow) 
+tot_sweep_time  = 3e-4;  % (s) long sweep times create large signal arrays (slow) 
 
 Phase_NoiseAndOffset = [-80,100e3]; % Noise and Offset taken form data sheet
 Circulator_Isolation = -20;         % Issolation in TX RX circulator coupling
@@ -37,8 +37,8 @@ tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
-sweepType       = 'up';
-CALERROR        = true;      % non-linear calibration (deviations in calibration)
+sweepType       = 'up'; %quad_up , up ,down
+CALERROR        = false;      % non-linear calibration (deviations in calibration)
 call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,7 +55,7 @@ L = points_per_step;
 %wave = zeros(L,FreqSteps);
 
 %% Acquire a sine way for the sweep
-wave = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType);
+[wave,frequencyForCal] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType,tot_sweep_time);
 
 %% Target Model
 rcs_comm = db2pow(min(10*log10(dist_comm)+5,20)); %RCS
@@ -96,6 +96,9 @@ sig_combined = wave;% combineSteps(wave,FreqSteps); % combine all steps into one
 
 %% Sweep:
 for stepNumber = 1:Nsweep
+    
+    %% Add cal drift
+    sig_combined = DriftCalibraton(wave,2.0e6,frequencyForCal,points_per_step,BW,CALERROR);
 
     %% Add phase noise
     sig = phase_noise(sig_combined,Phase_NoiseAndOffset(1),Phase_NoiseAndOffset(2));
@@ -103,8 +106,7 @@ for stepNumber = 1:Nsweep
     disp('Sweeping')
     disp(num2str(stepNumber));
     
-    %% Add cal drift
-    sig = DriftCalibraton(sig,150,freqSteps);
+
     
     %% Setup the TX signal
     txsig = step(transmitter,sig);
@@ -147,7 +149,8 @@ for stepNumber = 1:Nsweep
     rxsig = circulator(Circulator_Isolation,txsig,rxsig);
 
     dechirpsig = dechirp(rxsig,txsig);
-    dechirpsig = IQ_filter(dechirpsig); % filter the data through a LPF
+    %dechirpsig = IQ_filter(dechirpsig); % filter the data through a LPF
+    %FIX FOR ANY SWEEP LENGTH
 
     %% Plot FFT
     FFT_range(c,fs,dechirpsig,freqSteps,BW,tot_sweep_time,Fc,stepNumber,Nsweep)
@@ -187,9 +190,9 @@ end
  % CALERROR (bool): calibration ON/OFF flag
  % sweepType: waveform of the sweep
  % Returns (V): wave
- function [wave] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType)
+ function [wave,frequencyForCal] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType,tot_sweep_time)
     wave = [];
-    
+  
     switch sweepType
         case 'up'
             for steps = 1:freqSteps
@@ -202,25 +205,38 @@ end
                I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
                Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
                Z = I + 1i*Q; % combine into an IQ type waveform
-               %wave(:,steps) = Z';
+               frequencyForCal(steps) = (Fc+randomCallError)*steps; % keep freqs
                wave = vertcat(wave,Z');
             end
         case 'down'
-            for steps = freqSteps:1
+            for steps = 1:freqSteps
                t = 0:1:(points_per_step - 1);
                    if CALERROR % simulate small calibration errors if bool is true
                        randomCallError = -call_dev + (call_dev).*rand(1,1);
                    else
                        randomCallError = 0;
                    end
-               I = cos(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
-               Q = sin(((2*pi*(((Fc+randomCallError)*steps)/(2*BW)*t))));
+               I = cos(((2*pi*((((BW - ((steps-1)*Fc))*randomCallError))/(2*BW)*t))));
+               Q = sin(((2*pi*((((BW - ((steps-1)*Fc))*randomCallError))/(2*BW)*t))));
                Z = I + 1i*Q; % combine into an IQ type waveform
-               %wave(:,steps) = Z';
+               frequencyForCal(steps) = BW - ((steps-1)*Fc);
                wave = vertcat(wave,Z');
             end
-        case 'elliptic_up'
-            % TO DO
+        case 'quad_up'
+           for steps = 1:freqSteps
+               t = 0:1:(points_per_step - 1);
+                   if CALERROR % simulate small calibration errors if bool is true
+                       randomCallError = -call_dev + (call_dev).*rand(1,1);
+                   else
+                       randomCallError = 0;
+                   end
+               Fc = ((BW -0)/(tot_sweep_time^2))*(steps*tot_sweep_time/freqSteps)^2;
+               I = cos(((2*pi*(((Fc+randomCallError))/(2*BW)*t))));
+               Q = sin(((2*pi*(((Fc+randomCallError))/(2*BW)*t))));
+               Z = I + 1i*Q; % combine into an IQ type waveform
+               frequencyForCal(steps) = (Fc); % keep freqs
+               wave = vertcat(wave,Z');
+            end
         otherwise
             error('Non-existent sweep type has been defined. Terminating...');
     end     
@@ -476,15 +492,37 @@ end
     snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
  end
  
- %% Drift
- % drift the precalibrated wave by a very small random frequency deviation
- function [IQwave] = DriftCalibraton(IQwaveGiven,driftError,FreqSteps)
-     L = length(IQwaveGiven);
-     for steps = 1:L
-     randomCallError = -driftError/100 + (driftError/100).*rand(1,1);   
-     IQwaveGiven(steps)   =  IQwaveGiven(steps)*randomCallError + IQwaveGiven(steps);
-     end
-     IQwave = IQwaveGiven;
+  %% Drift
+ % drift the pre calibrated wave by a very small random frequency
+ % divieation
+ function [IQwave] = DriftCalibraton(wave,driftError,frequencyForCal,points_per_step,BW,CALERROR)
+%% Create a sine wave for every step with the given number of points
+    if CALERROR
+    wave = [];
+    L = length(frequencyForCal);
+    driftError = 0.50;
+    for steps = 1:L
+       t = [0:1:points_per_step-1];
+       randomCallError = (-(rand(1,1)+rand(1,1)))/250;
+
+       I = cos(2*pi*(((frequencyForCal(steps)+randomCallError*frequencyForCal(steps))/(2*BW)*t)));
+       Q = sin(2*pi*(((frequencyForCal(steps)+randomCallError*frequencyForCal(steps))/(2*BW)*t)));
+       Z = I + 1i*Q; % combine into an IQ type waveform
+       wave = vertcat(wave,Z');
+       frequencyCal(steps) =  frequencyForCal(steps)+randomCallError*frequencyForCal(steps);
+    end
+    figure(11);
+    hold on
+    plot(frequencyCal);
+    IQwave = wave;
+    else
+        IQwave = wave; %return old one
+    end
+    
  end
  
+ 
+ 
+ 
+
  
