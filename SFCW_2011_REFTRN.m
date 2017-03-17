@@ -11,14 +11,14 @@
 % # The receiving antenna collects the signal.
 % # The received signal is dechirped and saved in a buffer.
 % # The signal is LPF filltered to remove the IQ DC jumps in the FFT.
-% # FFT and range plotted 
+% # FFT and range plotted
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 %% User Entry Here
 fc = 24e9;       % 24 GHz is the system operating frequency
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
-Nsweep = 1;     % Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 3;      % Number of sweep for the radar to perform with the radar (overlap the plots)
 
 BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
 Fc = 2e6;        % Frequency step size
@@ -26,19 +26,19 @@ Fc = 2e6;        % Frequency step size
 tot_sweep_time  = 3e-4;  % (s) long sweep times create large signal arrays (slow) 
 
 Phase_NoiseAndOffset = [-80,100e3]; % Noise and Offset taken form data sheet
-Circulator_Isolation = -20;         % Issolation in TX RX circulator coupling
+Circulator_Isolation = -20;         % Isolation in TX RX circulator coupling
 
 slant_length    = 0.0115787; % (m) slant lenght of antenna
 slant_angle     = 22;        % (degrees) slant angle
 phys_ant_d      = 0.0381;
 
-dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
-tank_h          = 3.20;
+dist_comm       = 0.80;      % (m) distance between the radar and commodity surface
+tank_h          = 3.20;      % (m) height of the tank
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
-sweepType       = 'up'; %quad_up , up ,down
-CALERROR        = false;      % non-linear calibration (deviations in calibration)
+sweepType       = 'up';      % quad_up, up, down
+CALERROR        = true;      % non-linear calibration (deviations in calibration)
 call_dev        = 3.0e4;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,7 +55,7 @@ L = points_per_step;
 %wave = zeros(L,FreqSteps);
 
 %% Acquire a sine way for the sweep
-[wave,frequencyForCal] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType,tot_sweep_time);
+[wave, frequencyForCal] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType, tot_sweep_time);
 
 %% Target Model
 rcs_comm = db2pow(min(10*log10(dist_comm)+5,20)); %RCS
@@ -153,7 +153,7 @@ for stepNumber = 1:Nsweep
     %FIX FOR ANY SWEEP LENGTH
 
     %% Plot FFT
-    FFT_range(c,fs,dechirpsig,freqSteps,BW,tot_sweep_time,Fc,stepNumber,Nsweep)
+    FFT_range(c,fs,dechirpsig,freqSteps,BW,tot_sweep_time,Fc,tank_h,stepNumber,Nsweep)
 end
 
 
@@ -190,7 +190,8 @@ end
  % CALERROR (bool): calibration ON/OFF flag
  % sweepType: waveform of the sweep
  % Returns (V): wave
- function [wave,frequencyForCal] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType,tot_sweep_time)
+ function [wave, frequencyForCal] = generateSweepWaveform(Fc, BW, freqSteps, points_per_step, call_dev, CALERROR, sweepType, tot_sweep_time)
+    %frequencyForCal = [];   
     wave = [];
   
     switch sweepType
@@ -248,11 +249,12 @@ end
  % IQ_data: recived data
  % steps: number of steps the user entered
  % sweeptime: the sweeptime the user entered in seconds
+ % tank_h: height of the tank
  % stepSizeHz: step size in Hz of each step
  % stepNumber: current step
  % Nsweep: number of sweeps
  % Returns: combined signal at all steps 
- function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz,stepNumber,Nsweep)
+ function FFT_range (speedOfLight,Fs,IQ_data,steps,BW,sweeptime,stepSizeHz,tank_h,stepNumber,Nsweep)
     %% Statistical data (Alex):
     % This stuff is populated with every sweep and processed later to obtain
     % standard deviations and average values.
@@ -301,8 +303,7 @@ end
     disp(num2str(peak_x))
     
     %% Calculate SNR:
-    window = 0.8;
-    snr = calculateSNR(P2, Xaxis, peak_x, window);
+    snr = calculateSNR(P2, Xaxis, peak_x, tank_h);
     snr_disp = ['SNR: ', num2str(round(snr*100)/100), ' dB']; % round to 2 digits after decimal point
     disp(snr_disp)
     
@@ -313,7 +314,6 @@ end
     
     %% Output statistical data:
     if stepNumber == Nsweep
-        % Everything is rounded to 2 digits after decimal point.
         peak_positions_std_dev = std(peak_positions)*1000;
         peak_magnitudes_std_dev = std(peak_magnitudes);
         SNRs_mean = round(mean(SNRs)*100)/100;
@@ -444,51 +444,47 @@ end
  % y_data (array, ?) : ? from FFT
  % x_data (array, m) : values of x required to apply the window
  % peak_position (m) : actual distance to commodity acquired from FFT
- % window (m)        : the range away from the peak to be used in avg noise power calculation
+ % tank_h (m)        : height of the tank
  % Returns: SNR in dB.
- function [snr_out] = calculateSNR(y_data, x_data, peak_position, window)
-    % Temporary plot for debugging purposes:
-    figure(10)
-    plot(x_data, y_data)
-    hold on
-    axis([0 (peak_position + window) -1 19])
+ function [snr_out] = calculateSNR(y_data, x_data, peak_position, tank_h)
+    window = 0.5;
     
     %% Define window in terms of y_data indices:
-    length_of_y        = size(y_data, 1);    
-    peak_index         = round(peak_position/x_data(end)*length_of_y);
-    window_index_left  = round(peak_index - (window/2)/x_data(end)*length_of_y);
-    window_index_right = round(peak_index + (window/2)/x_data(end)*length_of_y);
-    
-    % Temporary console output for debugging purposes:
-    debug_display = ['index_left: ', num2str(window_index_left), ' peak_index: ', num2str(peak_index), ' index_right: ', num2str(window_index_right)];
-    disp(debug_display)
+    length_of_y = size(y_data, 1);    
+    peak_index  = round(peak_position/x_data(end)*length_of_y);
     
     %% Collect noise floor data:
-    marker_left  = peak_index;   % left boundary of the peak
-    marker_right = peak_index;   % right boundary of the peak
+    noise_data = [];    
     
-    % Acquire data from the left of the peak:
-    for i = (peak_index - 1) : -1 : window_index_left
-        if y_data(i) < y_data(i-1)
-            marker_left = i;
-            break
+    % Window on the right from the peak:
+    if peak_position < (0.5 + window) % first 0.5 m are assumed to be distorted by coupler isolation non-idealities
+        marker_left = peak_index; % left boundary of the peak
+        % Acquire data from the right of the peak:
+        for i = peak_index : 1 : round(peak_index + 3*window/x_data(end)*length_of_y)
+            if y_data(i) < y_data(i+1)
+                marker_left = i;
+                break
+            end
         end
-    end
-    
-    % Acquire data from the right of the peak:
-    for i = peak_index : 1 : window_index_right
-        if y_data(i) < y_data(i+1)
-            marker_right = i;
-            break
+        window_index_right = round(marker_left + window/x_data(end)*length_of_y);
+        noise_data = y_data(marker_left : window_index_right);
+        disp(num2str(marker_left));
+    % Window on the left from the peak (default):
+    else
+        marker_right = peak_index; % right boundary of the peak
+        % Acquire data from the right of the peak:
+        for i = peak_index : -1 : round(peak_index - 3*window/x_data(end)*length_of_y)
+            if y_data(i) < y_data(i+1)
+                marker_right = i;
+                break
+            end
         end
-    end
-    
-    % Calculate average noise power:
-    noise_data_left  = y_data(window_index_left : marker_left);
-    noise_data_right = y_data(marker_right : window_index_right);
-    noise_average    = (mean(noise_data_left) + mean(noise_data_right))/2;
+        window_index_left = round(marker_right - window/x_data(end)*length_of_y);
+        noise_data = y_data(window_index_left : marker_right);
+    end  
     
     %% Output SNR in dB:
+    noise_average = mean(noise_data);
     snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
  end
  
