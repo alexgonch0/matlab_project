@@ -37,7 +37,7 @@ tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;
-sweepType       = 'up'; %quad_up , up ,down
+sweepType       = 'up';      % quad_up, up, down
 CALERROR        = true;      % non-linear calibration (deviations in calibration)
 call_dev        = 1.0e4;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
@@ -150,7 +150,7 @@ IQ_data = Idata - 1i*Qdata;
 %% Received radar return with gain
 rxsig = step(receiver,IQ_data);
 %% Plot FFT and Range data
-FFT_range(c,rxsig,freqStepSize,sweepNumber,Nsweep);
+FFT_range(c,rxsig,freqStepSize,sweepNumber,Nsweep,tank_h);
 end   
     
     
@@ -224,7 +224,7 @@ end
  % stepNumber: current step
  % Nsweep: number of sweeps
  % Returns: combined signal at all steps 
- function FFT_range (speedOfLight,IQ_data,Delta_F_Hz,stepNumber,Nsweep)
+ function FFT_range (speedOfLight,IQ_data,Delta_F_Hz,stepNumber,Nsweep,tank_h)
     %% Statistical data (Alex):
     % This stuff is populated with every sweep and processed later to obtain
     % standard deviations and average values.
@@ -260,14 +260,14 @@ end
 
     
     %% Estimate Range:
-    [y,x] = max(mag2db(P2(round(1/Xaxis(1)):round(5/Xaxis(1))))); % find peak FFT point between 1m to 5m
-    peak_x = Xaxis(x-1+round(1/Xaxis(1)));
-    disp('Distance of object based on FFT (m):')
+    [y,x] = max(mag2db(P2(round(1/Xaxis(2)) : round(5/Xaxis(2))))); % find peak FFT point between 1m to 5m
+    disp(num2str(x))
+    peak_x = Xaxis(x + round(1/Xaxis(2)));
+    disp('Distance to the oil level based on FFT (m):')
     disp(num2str(peak_x))
     
     %% Calculate SNR:
-    window = 0.8;
-    snr = calculateSNR(P2, Xaxis, peak_x, window);
+    snr = calculateSNR(P2, Xaxis, tank_h);
     snr_disp = ['SNR: ', num2str(round(snr*100)/100), ' dB']; % round to 2 digits after decimal point
     disp(snr_disp)
     
@@ -278,7 +278,6 @@ end
     
     %% Output statistical data:
     if stepNumber == Nsweep
-        % Everything is rounded to 2 digits after decimal point.
         peak_positions_std_dev = std(peak_positions)*1000;
         peak_magnitudes_std_dev = std(peak_magnitudes);
         SNRs_mean = round(mean(SNRs)*100)/100;
@@ -370,54 +369,62 @@ end
  
  %% SNR smart calculation (Alex)
  % y_data (array, ?) : ? from FFT
- % x_data (array, m) : values of x required to apply the window
- % peak_position (m) : actual distance to commodity acquired from FFT
- % window (m)        : the range away from the peak to be used in avg noise power calculation
+ % x_data (array, m) : values of x required to apply the window <--- no longer used
+ % tank_h (m)        : height of the tank <--- no longer used
  % Returns: SNR in dB.
- function [snr_out] = calculateSNR(y_data, x_data, peak_position, window)
-    % Temporary plot for debugging purposes:
-    %figure(10)
-    %plot(x_data, y_data)
+ function [snr_out] = calculateSNR(y_data, x_data, tank_h)
+    window = 1000; % in number of elements
+    
+    %figure(11)
+    %plot(x_data, (y_data))
     %hold on
-    %axis([0 (peak_position + window) -1 19])
+    %axis([0 5 -1 20])
     
-    %% Define window in terms of y_data indices:
-    length_of_y        = size(y_data, 1);    
-    peak_index         = round(peak_position/x_data(end)*length_of_y);
-    window_index_left  = round(peak_index - (window/2)/x_data(end)*length_of_y);
-    window_index_right = round(peak_index + (window/2)/x_data(end)*length_of_y);
-    
-    % Temporary console output for debugging purposes:
-    debug_display = ['index_left: ', num2str(window_index_left), ' peak_index: ', num2str(peak_index), ' index_right: ', num2str(window_index_right)];
-    %disp(debug_display)
+    %% Define window in terms of y_data indices:   
+    %peak_index = round(peak_position/x_data(2));
+    [y_max peak_index] = max(y_data(600:6200));   % find max between 0.3 and 3.1 m
+    peak_index = peak_index + 600;                % fix the 0.3 m offset
+    disp('CORRECT peak_position (m):')
+    disp(num2str(peak_index/2000))
     
     %% Collect noise floor data:
-    marker_left  = peak_index;   % left boundary of the peak
-    marker_right = peak_index;   % right boundary of the peak
+    noise_data = [];    
     
-    % Acquire data from the left of the peak:
-    for i = (peak_index - 1) : -1 : window_index_left
-        if y_data(i) < y_data(i-1)
-            marker_left = i;
-            break
+    % Window on the right from the peak:
+    if peak_index < (600 + window) % first 0.3 m are assumed to be distorted by coupler isolation non-idealities
+        marker_left = peak_index;  % left boundary of the peak
+        % Acquire data from the right of the peak:
+        for i = (peak_index + 1) : 1 : (peak_index + window)
+            if y_data(i) < y_data(i+1)
+                marker_left = i;
+                break
+            end
         end
-    end
-    
-    % Acquire data from the right of the peak:
-    for i = peak_index : 1 : window_index_right
-        if y_data(i) < y_data(i+1)
-            marker_right = i;
-            break
+        window_index_right = marker_left + window;
+        noise_data = y_data(marker_left : window_index_right);
+        %disp('Markers 1 (indices):')
+        %disp(num2str(marker_left))
+        %disp(num2str(window_index_right))
+    % Window on the left from the peak (default):
+    else
+        marker_right = peak_index; % right boundary of the peak
+        % Acquire data from the left of the peak:
+        for i = (peak_index - 10) : -1 : (peak_index - window)
+            if y_data(i) > y_data(i+1)
+                marker_right = i;
+                break
+            end
         end
-    end
-    
-    % Calculate average noise power:
-    noise_data_left  = y_data(window_index_left : marker_left);
-    noise_data_right = y_data(marker_right : window_index_right);
-    noise_average    = (mean(noise_data_left) + mean(noise_data_right))/2;
+        window_index_left = marker_right - window;
+        noise_data = y_data(window_index_left : marker_right);
+        %disp('Markers 2 (indices):')
+        %disp(num2str(window_index_left))
+        %disp(num2str(marker_right))
+    end  
     
     %% Output SNR in dB:
-    snr_out = mag2db(y_data(peak_index)) - mag2db(noise_average);
+    noise_average = mean(noise_data);
+    snr_out = mag2db(y_max) - mag2db(noise_average);
  end
  
   %% Drift
