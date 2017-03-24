@@ -16,30 +16,31 @@
 
 
 %% User Entry Here
-fc = 24e9;       % 24 GHz is the system operating frequency
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
+fc = 24e9;       % 24 GHz is the system operating frequency
 Nsweep = 10;     % Number of sweep for the radar to perform with the radar (overlap the plots)
+BW = 4e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
 
-BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
-freqStepSize = 1e6;        % Frequency step size
-                    
-tot_sweep_time  = 1e-4;  % (s) long sweep times create large signal arrays (slow) 
-
-Phase_NoiseAndOffset = [-150,100e3]; % Noise and Offset taken form data sheet
-Circulator_Isolation = -20;         % Issolation in TX RX circulator coupling
+freqStepSize = 1e6;          % Frequency step size
+tot_sweep_time  = 1e-4;      % (s) used in sloshing
+Circulator_Isolation = -20;  % Issolation in TX RX circulator coupling
 
 slant_length    = 0.0115787; % (m) slant lenght of antenna
 slant_angle     = 22;        % (degrees) slant angle
 phys_ant_d      = 0.0381;
+tx_gain_db      = 15;        % Transmitter gain in dB
+rx_gain_db      = 20;        % Reciver gain in dB
+rx_nf           = 3;         % Noise Figure in dB
 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
 tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
-metal_perm      = 999;
+metal_perm      = 999;       % (e) Permtivity of metal 
 sweepType       = 'up';      % quad_up, up, down
-CALERROR        = true;      % non-linear calibration (deviations in calibration)
-call_dev        = 1.0e4;     % (Hz) Calibration deviation form ideal (random)
+CALERROR        = false;      % non-linear calibration (deviations in calibration)
+call_dev        = 500e4;     % (Hz) Calibration deviation form ideal (random)
+drift_dev       = 50e4;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -83,10 +84,8 @@ effective_d = ant_diameter/phys_ant_d;
 ant_gain = ((pi*ant_diameter)/lambda)^2 * effective_d;
 
 tx_power = db2pow(ant_gain)*db2pow(1)*1e-3;     % in watts
-tx_gain  = 15+ant_gain;                         % in dB
-
-rx_gain  = 25+ant_gain;                         % RX LNA gain in dB
-rx_nf    = 3;                                   % Noise Figure in dB
+tx_gain  = tx_gain_db+ant_gain;                         % in dB
+rx_gain  = rx_gain_db+ant_gain;                         % RX LNA gain in dB
 
 transmitter = phased.Transmitter('PeakPower',tx_power,'Gain',tx_gain);
 receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,'SampleRate',fs);
@@ -96,21 +95,22 @@ receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,'SampleRate'
 %% Acquire a sine way for the sweep
 [frequencyForCal] = generateSweepWaveform(BW,fc,freqSteps,call_dev, CALERROR, sweepType,tot_sweep_time);
 
-error = 0.0001;
 driftedCalFreq = [];
 Idata = [];
 Qdata = [];
-
+fitresult = powerVariationCurve();
 for sweepNumber = 1:Nsweep
-driftedCalFreq = DriftCalibraton(error,frequencyForCal,CALERROR);
+driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     for stepNumber = 1:freqSteps
     %frequencyForCal
-    propFreq = driftedCalFreq(stepNumber)+fc;
-    txsig = step(transmitter,1); %1 volt is base power
+    propFreq = driftedCalFreq(stepNumber);
+    txsig = step(transmitter,1); %'1' base power of signal
     
+    %% Apply Power variation at each step
+    txsig = powerVariation(txsig,propFreq,fitresult);
 
     %% Calcualate and apply pathloss in air to the transmitted signal from ant to commdity
-    LfspOneWay  = pathLoss(error,dist_comm,propFreq,c); 
+    LfspOneWay  = pathLoss(0,dist_comm,propFreq,c); 
     txInterface = txsig * LfspOneWay; 
 
     %% If there is slowhing, get an RCS value
@@ -144,41 +144,16 @@ driftedCalFreq = DriftCalibraton(error,frequencyForCal,CALERROR);
 
     end
 %% Combine into one vector
-IQ_data = Idata - 1i*Qdata;    
-%% Add circulator coupling as DC offset
-%rxsig = circulator(Circulator_Isolation,txsig,rxsig);
+IQ_data = Idata - 1i*Qdata;   
 %% Received radar return with gain
 rxsig = step(receiver,IQ_data);
+%% Add circulator coupling as DC offset
+%rxsig = circulator(Circulator_Isolation,rxsig);
 %% Plot FFT and Range data
 FFT_range(c,rxsig,freqStepSize,sweepNumber,Nsweep,tank_h);
 end   
     
-    
 
- %% FilterDesigner LPF for filtering IQ jumps
- % Filter created in MATLAB filterDesigner to filter square jumps 
- % IQ_data: data to be filtered
- % Returns: IQ_data passed through a LPF
- function [filtered_data] = IQ_filter(IQ_data)
- % All frequency values are in Hz.
- Fs = 4e9;    % Sampling Frequency
-
- N  = 25;     % Order
- Fc = 450000; % Cutoff Frequency
-
- % Construct an FDESIGN object and call its BUTTER method.
- h  = fdesign.lowpass('N,F3dB', N, Fc, Fs);
- Hd = design(h, 'butter');
- output = filter(Hd,IQ_data);
- filtered_data = output;
- %figure(4)
- %hold on
- %plot(real(IQ_data))
- %plot(real(output))
- %plot(imag(output))
- end
-
- 
  %% Creating a sine wave for every step with the given number of points
  % Fc (Hz): frequency step size
  % BW (Hz): system Bandwidth
@@ -194,11 +169,10 @@ end
         case 'up'
             for steps = 1:freqSteps
                    if CALERROR % simulate small calibration errors if bool is true
-                       randomCallError = -call_dev + (call_dev).*rand(1,1);
+                      frequencyForCal(steps) = normrnd(fc,call_dev)+(stepSize)*steps; %
                    else
-                       randomCallError = 0;
+                      frequencyForCal(steps) = fc+(stepSize)*steps; % keep freqs
                    end
-               frequencyForCal(steps) = fc+(stepSize+randomCallError)*steps; % keep freqs
             end
         case 'down'
             for steps = 1:freqSteps
@@ -306,9 +280,11 @@ end
  % initial: the TX signal
  % target: the RX signal
  % Returns: the initial recived signal with a portion of the TX signal 
- function [txsig_out] = circulator(isolation, initial, target)
-    isolation = 10^(isolation/10); % convert from db to linear
-    txsig_out = target + isolation * initial;
+ function [txsig_out] = circulator(isolation, initial)
+    TrigFudgeFactor = 0.35; %match data to plots
+    DCoffset  =  max(abs(initial)) + TrigFudgeFactor;
+    isolation =  10^(isolation/10); % convert from db to linear
+    txsig_out =  initial + isolation * DCoffset;
  end
  
  %% Calculate Free Space Loss
@@ -427,7 +403,7 @@ end
     snr_out = mag2db(y_max) - mag2db(noise_average);
  end
  
-  %% Drift
+ %% Drift
  % drift the pre calibrated wave by a very small random frequency
  % divieation
  function [driftedCalFreq] = DriftCalibraton(driftError,frequencyForCal,CALERROR)
@@ -435,22 +411,63 @@ end
     if CALERROR
     L = length(frequencyForCal);
     for steps = 1:L
-       randomCallError = (-(rand(1,1)+rand(1,1)))/(1/driftError);
-       frequencyReCal(steps) =  frequencyForCal(steps)+randomCallError*frequencyForCal(steps);
+       frequencyForReCal(steps) = normrnd(frequencyForCal(steps),driftError);%
     end
-    %figure(11);
-    %hold on
-    %plot(frequencyReCal);
-    %plot(frequencyForCal);
-    driftedCalFreq = frequencyReCal;
+    driftedCalFreq = frequencyForReCal;
     else
     driftedCalFreq = frequencyForCal;
     end
     
  end
- 
- 
- 
- 
+
+%taken from data sheet
+function [powerAdj] = powerVariation(txsig,freq,fitresult)
+powerAdj = txsig*fitresult(freq);
+
+end
+
+
+
+%taken from data sheet
+function [fitresult] = powerVariationCurve()
+PowermW   = [9.5,10.0,11.2,14.1,30.1,28.3,15.2,26,8,15,6.0,5.2,4.8,4.2,3.9];
+PowermW = PowermW/max(PowermW);
+Frequency = [21e9,22e9,23e9,24e9,24.5e9,25e9,25.5e9,26e9,26.5e9,26.8e9,27e9,27.3e9,27.7e9,28e9,28.2e9];
+
+
+%% Fit: 'untitled fit 1'.
+[xData, yData] = prepareCurveData( Frequency, PowermW );
+
+% Set up fittype and options.
+ft = fittype( 'poly6' );
+
+% Fit model to data.
+[fitresult, gof] = fit( xData, yData, ft, 'Normalize', 'on' );
+
+% Plot fit with data.
+figure( 'Name', 'untitled fit 1' );
+h = plot( fitresult, xData, yData );
+legend( h, 'PowermW vs. Frequency', 'untitled fit 1', 'Location', 'NorthEast' );
+%Label axes
+xlabel Frequency
+ylabel PowermW
+grid on
+
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
 
  
