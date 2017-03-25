@@ -18,11 +18,11 @@
 %% User Entry Here
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
 fc = 24e9;       % 24 GHz is the system operating frequency
-Nsweep = 10;     % Number of sweep for the radar to perform with the radar (overlap the plots)
-BW = 4e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
+Nsweep = 10;      % Number of sweep for the radar to perform with the radar (overlap the plots)
+BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
 
-freqStepSize = 1e6;          % Frequency step size
-tot_sweep_time  = 1e-4;      % (s) used in sloshing
+freqStepSize    = 1e6;       % Frequency step size
+tot_sweep_time  = 1e-3;      % (s) used in sloshing
 Circulator_Isolation = -20;  % Issolation in TX RX circulator coupling
 
 slant_length    = 0.0115787; % (m) slant lenght of antenna
@@ -37,10 +37,12 @@ tank_h          = 3.20;
 comm_perm       = 2.30;      % (e) Commodity permitivity
 air_perm        = 1.00;
 metal_perm      = 999;       % (e) Permtivity of metal 
+
 sweepType       = 'up';      % quad_up, up, down
-CALERROR        = false;      % non-linear calibration (deviations in calibration)
-call_dev        = 500e4;     % (Hz) Calibration deviation form ideal (random)
-drift_dev       = 50e4;     % (Hz) Calibration deviation form ideal (random)
+CALERROR        = true;      % non-linear calibration (deviations in calibration)
+POWERVAR        = false;     % Simulate Power variation
+call_dev        = 300e4;     % (Hz) Calibration deviation 1sigma from ideal
+drift_dev       = 20e4;      % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -49,11 +51,7 @@ drift_dev       = 50e4;     % (Hz) Calibration deviation form ideal (random)
 %% Start Sweep Code
 lambda = c/fc;          % wavelength
 freqSteps = BW/freqStepSize;      % calculate number of steps
-fs =BW*2;               % sampling frequency at 2Fs = 4Ghz
-tot_points = fs*tot_sweep_time; % points for given sweep time
-points_per_step = tot_points/freqSteps;
-L = points_per_step;
-%wave = zeros(L,FreqSteps);
+
 
 
 
@@ -63,10 +61,6 @@ c_comm = 1/ sqrt((4*pi*10^-7)*(8.854187*10^-12)*(comm_perm)); %Propagation speed
 target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c_comm,...
     'OperatingFrequency',fc);
 
-%% Channel
-% The propagation model is assumed to be free space.
-channel = phased.WidebandFreeSpace('PropagationSpeed',c,...
-    'OperatingFrequency',fc,'SampleRate',fs,'TwoWayPropagation',true);
 
 %% Radar System Setup
 % The rest of the radar system includes the transmitter, the receiver, and
@@ -83,17 +77,18 @@ ant_diameter = sqrt(3*lambda*slant_length);
 effective_d = ant_diameter/phys_ant_d;
 ant_gain = ((pi*ant_diameter)/lambda)^2 * effective_d;
 
-tx_power = db2pow(ant_gain)*db2pow(1)*1e-3;     % in watts
+tx_power = db2pow(ant_gain)*db2pow(1)*1e-3;             % in watts
 tx_gain  = tx_gain_db+ant_gain;                         % in dB
 rx_gain  = rx_gain_db+ant_gain;                         % RX LNA gain in dB
 
 transmitter = phased.Transmitter('PeakPower',tx_power,'Gain',tx_gain);
-receiver = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,'SampleRate',fs);
+receiver    = phased.ReceiverPreamp('Gain',rx_gain,'NoiseFigure',rx_nf,'SampleRate',fc);
 
 %% Sweep:
 %http://micsymposium.org/mics_2009_proceedings/mics2009_submission_64.pdf
 %% Acquire a sine way for the sweep
 [frequencyForCal] = generateSweepWaveform(BW,fc,freqSteps,call_dev, CALERROR, sweepType,tot_sweep_time);
+%plot(frequencyForCal)
 
 driftedCalFreq = [];
 Idata = [];
@@ -107,7 +102,7 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     txsig = step(transmitter,1); %'1' base power of signal
     
     %% Apply Power variation at each step
-    txsig = powerVariation(txsig,propFreq,fitresult);
+    txsig = powerVariation(txsig,propFreq,fitresult,POWERVAR);
 
     %% Calcualate and apply pathloss in air to the transmitted signal from ant to commdity
     LfspOneWay  = pathLoss(0,dist_comm,propFreq,c); 
@@ -139,13 +134,15 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     
     Idata(stepNumber) =  Idata(stepNumber) + txInterfaceOil*(cos(-2*pi*propFreq*(((tank_h-dist_comm)*2/c_comm)+(dist_comm*2/c))));
     Qdata(stepNumber) =  Qdata(stepNumber) + txInterfaceOil*(sin(-2*pi*propFreq*(((tank_h-dist_comm)*2/c_comm)+(dist_comm*2/c))));
-    
-
-
     end
-%% Combine into one vector
+    
+    %% Combine into one vector
 IQ_data = Idata - 1i*Qdata;   
 %% Received radar return with gain
+figure(10)
+plot(Qdata)
+hold on
+plot(Idata)
 rxsig = step(receiver,IQ_data);
 %% Add circulator coupling as DC offset
 %rxsig = circulator(Circulator_Isolation,rxsig);
@@ -169,11 +166,14 @@ end
         case 'up'
             for steps = 1:freqSteps
                    if CALERROR % simulate small calibration errors if bool is true
-                      frequencyForCal(steps) = normrnd(fc,call_dev)+(stepSize)*steps; %
+                      normdisFc(steps)   = normrnd(fc,call_dev);
+                      frequencyForCal(steps) = normdisFc(steps)+(stepSize)*steps; %
                    else
                       frequencyForCal(steps) = fc+(stepSize)*steps; % keep freqs
                    end
             end
+            %figure(22)
+            %histogram(normdisFc)
         case 'down'
             for steps = 1:freqSteps
                    if CALERROR % simulate small calibration errors if bool is true
@@ -225,7 +225,7 @@ end
     figure(2)
     hold on
     plot(Xaxis,mag2db(P2))
-    axis([0 10 -40 30])
+    axis([0 10 -60 30])
     title('Range Power Plot')
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
@@ -262,18 +262,6 @@ end
     end
  end
 
-  
- %% Adding IQ phasenoise
- % IQ_Data: is the original data to apply phase noise to
- % PhaseNoise: the ammount of phase noise to add in db
- % Offset: frequency offsets to apply phase noise to (Hz)
- % Returns: a phase noise mixed version of the IQ data
- function [IQ_Data_noise] = phase_noise(IQ_Data,PhaseNoise,Offset)
- pnoise = comm.PhaseNoise('Level',PhaseNoise,'FrequencyOffset',Offset, 'SampleRate',2*Offset);
- IQ_Data_noise = step(pnoise,IQ_Data);
- %WhiteNoise    = awgn(IQ_Data_noise,1,.01);
- %IQ_Data_noise = WhiteNoise;
- end
 
  %% Adding Circulator Coupling (RX TX coupling)
  % isolation: dB of issolation between the circulator
@@ -414,25 +402,31 @@ end
        frequencyForReCal(steps) = normrnd(frequencyForCal(steps),driftError);%
     end
     driftedCalFreq = frequencyForReCal;
+    
     else
     driftedCalFreq = frequencyForCal;
     end
     
+    
  end
 
 %taken from data sheet
-function [powerAdj] = powerVariation(txsig,freq,fitresult)
-powerAdj = txsig*fitresult(freq);
-
+function [powerAdj] = powerVariation(txsig,freq,fitresult,variationBool)
+    if variationBool 
+    powerAdj = txsig*fitresult(freq);   
+    else
+    powerAdj = txsig;
+    end
+    %powerAdj = txsig*abs(cos(1*pi*(1*pi*(freq/24e9))));
 end
 
 
 
 %taken from data sheet
 function [fitresult] = powerVariationCurve()
-PowermW   = [9.5,10.0,11.2,14.1,30.1,28.3,15.2,26,8,15,6.0,5.2,4.8,4.2,3.9];
+PowermW   = [2.5,10.0,11.2,14.1,30.1,28.3,10.2,1,8,2,6.0,29.2,33.8,30.2,33.9];
 PowermW = PowermW/max(PowermW);
-Frequency = [21e9,22e9,23e9,24e9,24.5e9,25e9,25.5e9,26e9,26.5e9,26.8e9,27e9,27.3e9,27.7e9,28e9,28.2e9];
+Frequency = [24e9,24.1e9,24.2e9,24.4e9,24.6e9,25.0e9,25.2e9,25.4e9,25.6e9,25.7e9,25.9e9,26.1e9,26.2e9,26.3e9,26.5e9];
 
 
 %% Fit: 'untitled fit 1'.
@@ -445,13 +439,13 @@ ft = fittype( 'poly6' );
 [fitresult, gof] = fit( xData, yData, ft, 'Normalize', 'on' );
 
 % Plot fit with data.
-figure( 'Name', 'untitled fit 1' );
-h = plot( fitresult, xData, yData );
-legend( h, 'PowermW vs. Frequency', 'untitled fit 1', 'Location', 'NorthEast' );
+%figure( 'Name', 'untitled fit 1' );
+%h = plot( fitresult, xData, yData );
+%legend( h, 'PowermW vs. Frequency', 'untitled fit 1', 'Location', 'NorthEast' );
 %Label axes
-xlabel Frequency
-ylabel PowermW
-grid on
+%xlabel Frequency
+%ylabel PowermW
+%grid on
 
 
 
