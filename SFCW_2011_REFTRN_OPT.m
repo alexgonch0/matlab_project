@@ -16,7 +16,6 @@
 
 
 %% User Entry Here
-c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
 fc = 24e9;       % 24 GHz is the system operating frequency
 Nsweep = 10;      % Number of sweep for the radar to perform with the radar (overlap the plots)
 BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
@@ -53,13 +52,10 @@ lambda = c/fc;          % wavelength
 freqSteps = BW/freqStepSize;      % calculate number of steps
 
 
-
-
 %% Target Model
-rcs_comm = db2pow(min(10*log10(dist_comm)+5,20)); %RCS
 c_comm = 1/ sqrt((4*pi*10^-7)*(8.854187*10^-12)*(comm_perm)); %Propagation speed calculation for comm
-target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'PropagationSpeed',c_comm,...
-    'OperatingFrequency',fc);
+c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
+
 
 
 %% Radar System Setup
@@ -71,7 +67,7 @@ target_comm = phased.RadarTarget('Model','Nonfluctuating','MeanRCS',rcs_comm,'Pr
 % antenna is included in the transmitter and the receiver.
 
 k = 2*pi/lambda;
-r = dist_comm*tan(slant_angle*pi/180); % for sloshing
+r = dist_comm*tan((slant_angle/2)*pi/180); % for sloshing
 
 ant_diameter = sqrt(3*lambda*slant_length);
 effective_d = ant_diameter/phys_ant_d;
