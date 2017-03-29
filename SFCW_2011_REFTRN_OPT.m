@@ -31,7 +31,7 @@ tx_gain_db      = 15;        % Transmitter gain in dB
 rx_gain_db      = 20;        % Reciver gain in dB
 rx_nf           = 3;         % Noise Figure in dB
 
-fill_rate       = 0.5;       % (m/s) fill rate of oil, zero if not filling;
+fill_rate       = 0.3;       % (m/s) fill rate of oil, zero if not filling;
 slosh_type      = 'none';    % 'height' or angular or 'none' 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
 tank_h          = 3.20;      % (m) full height of tank
@@ -300,9 +300,11 @@ end
 % Calculates the rcs and new distance to commodity while the tank is being
 % filled
  function [new_dist_comm, rcs] = fill_tank(lambda,fill_rate,slant_angle,dist_comm,tot_sweep_time,Nsweep)
- new_dist_comm = dist_comm - (fill_rate*(tot_sweep_time/Nsweep));
- r = dist_comm*tan((slant_angle/2)*pi/180);
- rcs = (4*pi^3*r^4)/ (lambda^2);
+ if dist_comm ~=0
+    new_dist_comm = dist_comm - (fill_rate*(tot_sweep_time/Nsweep));
+    r = dist_comm*tan((slant_angle/2)*pi/180);
+    rcs = (4*pi^3*r^4)/ (lambda^2);
+ end
  end
  
  %% Sloshing
