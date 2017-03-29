@@ -31,8 +31,8 @@ tx_gain_db      = 15;        % Transmitter gain in dB
 rx_gain_db      = 20;        % Reciver gain in dB
 rx_nf           = 3;         % Noise Figure in dB
 
-fill_rate       = 0;         % (m/s) fill rate of oil, zero if not filling;
-slosh_type      = 'height';  % 'height' or angular or 'none' 
+fill_rate       = 0.2;         % (m/s) fill rate of oil, zero if not filling;
+slosh_type      = 'none';  % 'height' or angular or 'none' 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
 tank_h          = 3.20;      % (m) full height of tank
 comm_perm       = 2.30;      % (e) Commodity permitivity
@@ -50,13 +50,14 @@ drift_dev       = 20e4;      % (Hz) Calibration deviation form ideal (random)
 
 
 %% Start Sweep Code
+c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
 lambda = c/fc;          % wavelength
 freqSteps = BW/freqStepSize;      % calculate number of steps
-c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
+
 
 %% Target Model
 r = dist_comm*tan((slant_angle/2)*pi/180);
-rcs_comm = 4*pi^3*(r_metal)^4/lambda^2;
+rcs_comm = 4*pi^3*(r)^4/lambda^2;
 c_comm = 1/ sqrt((4*pi*10^-7)*(8.854187*10^-12)*(comm_perm)); %Propagation speed calculation for comm
 r_metal = tank_h*tan((slant_angle/2)*pi/180);
 
@@ -104,7 +105,7 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
 
     %% Check for filling, sloshing, or constant
     if fill_rate ~= 0
-        [dist_comm, rcs_comm] = fill_tank(lambda, fill_rate,dist_comm,tot_sweep_time,Nsweep,sweepNumber);
+        [dist_comm, rcs_comm] = fill_tank(lambda, fill_rate,dist_comm,tot_sweep_time,Nsweep);
     elseif strcmp(slosh_type, 'height') == 1 || strcmp(slosh_type, 'angular') == 1 
         rcs_comm = rcsSlosh(lambda,sweepNumber,r,slosh_type);
     end
