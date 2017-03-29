@@ -104,8 +104,8 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     txInterface = txsig * LfspOneWay; 
 
     %% Check for filling, sloshing, or constant
-    if fill_rate ~= 0
-        [dist_comm, rcs_comm] = fill_tank(lambda, fill_rate,dist_comm,tot_sweep_time,Nsweep);
+    if fill_rate ~= 0 && sweepNumber ~= 1
+        [dist_comm, rcs_comm] = fill_tank(lambda,fill_rate,slant_angle,dist_comm,tot_sweep_time,Nsweep);
     elseif strcmp(slosh_type, 'height') == 1 || strcmp(slosh_type, 'angular') == 1 
         rcs_comm = rcsSlosh(lambda,sweepNumber,r,slosh_type);
     end
@@ -300,7 +300,7 @@ end
 %% Fill tank
 % Calculates the rcs and new distance to commodity while the tank is being
 % filled
- function [new_dist_comm, rcs] = fill_tank(lambda,fill_rate,dist_comm,tot_sweep_time,Nsweep)
+ function [new_dist_comm, rcs] = fill_tank(lambda,fill_rate,slant_angle,dist_comm,tot_sweep_time,Nsweep)
  new_dist_comm = dist_comm - (fill_rate*(tot_sweep_time/Nsweep));
  r = dist_comm*tan((slant_angle/2)*pi/180);
  rcs = (4*pi^3*r^4)/ (lambda^2);
