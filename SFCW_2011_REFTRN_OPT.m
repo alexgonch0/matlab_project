@@ -90,6 +90,12 @@ Idata = [];
 Qdata = [];
 fitresult = powerVariationCurve();
 for sweepNumber = 1:Nsweep
+    %% Check for filling, sloshing, or constant
+    if fill_rate ~= 0 && sweepNumber ~= 1
+        [dist_comm, rcs_comm] = fill_tank(lambda,fill_rate,slant_angle,dist_comm,tot_sweep_time,Nsweep);
+    elseif strcmp(slosh_type, 'height') == 1 || strcmp(slosh_type, 'angular') == 1 
+        [dist_comm, rcs_comm] = rcsSlosh(lambda,slant_angle,dist_comm,sweepNumber,r,slosh_type);
+    end
 driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     for stepNumber = 1:freqSteps
     %frequencyForCal
@@ -98,13 +104,6 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     
     %% Apply Power variation at each step
     txsig = powerVariation(txsig,propFreq,fitresult,POWERVAR);
-    
-    %% Check for filling, sloshing, or constant
-    if fill_rate ~= 0 && sweepNumber ~= 1
-        [dist_comm, rcs_comm] = fill_tank(lambda,fill_rate,slant_angle,dist_comm,tot_sweep_time,Nsweep);
-    elseif strcmp(slosh_type, 'height') == 1 || strcmp(slosh_type, 'angular') == 1 
-        [dist_comm, rcs_comm] = rcsSlosh(lambda,slant_angle,dist_comm,sweepNumber,r,slosh_type);
-    end
 
     %% Calcualate and apply pathloss in air to the transmitted signal from ant to commdity
     LfspOneWay  = pathLoss(0,dist_comm,propFreq,c); 
