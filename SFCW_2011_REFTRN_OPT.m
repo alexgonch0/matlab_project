@@ -31,8 +31,8 @@ tx_gain_db      = 15;        % Transmitter gain in dB
 rx_gain_db      = 20;        % Reciver gain in dB
 rx_nf           = 3;         % Noise Figure in dB
 
-fill_rate       = 0.2;         % (m/s) fill rate of oil, zero if not filling;
-slosh_type      = 'none';  % 'height' or angular or 'none' 
+fill_rate       = 0.5;       % (m/s) fill rate of oil, zero if not filling;
+slosh_type      = 'none';    % 'height' or angular or 'none' 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
 tank_h          = 3.20;      % (m) full height of tank
 comm_perm       = 2.30;      % (e) Commodity permitivity
@@ -98,17 +98,17 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     
     %% Apply Power variation at each step
     txsig = powerVariation(txsig,propFreq,fitresult,POWERVAR);
-
-    %% Calcualate and apply pathloss in air to the transmitted signal from ant to commdity
-    LfspOneWay  = pathLoss(0,dist_comm,propFreq,c); 
-    txInterface = txsig * LfspOneWay; 
-
+    
     %% Check for filling, sloshing, or constant
     if fill_rate ~= 0 && sweepNumber ~= 1
         [dist_comm, rcs_comm] = fill_tank(lambda,fill_rate,slant_angle,dist_comm,tot_sweep_time,Nsweep);
     elseif strcmp(slosh_type, 'height') == 1 || strcmp(slosh_type, 'angular') == 1 
-        rcs_comm = rcsSlosh(lambda,sweepNumber,r,slosh_type);
+        [dist_comm, rcs_comm] = rcsSlosh(lambda,slant_angle,dist_comm,sweepNumber,r,slosh_type);
     end
+
+    %% Calcualate and apply pathloss in air to the transmitted signal from ant to commdity
+    LfspOneWay  = pathLoss(0,dist_comm,propFreq,c); 
+    txInterface = txsig * LfspOneWay; 
 
     %% Calculate and apply the return signal from commdity back to ant and the delay
     returnsig  = txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
@@ -307,28 +307,54 @@ end
  end
  
  %% Sloshing
- % Dani code... need to comment
- function [rcs] = rcsSlosh(lambda,m,r,k)
-        aspect_angle = 0;
-        i = 0;
-        motion = 0.5;
-        stop_condition = 5;
-        if m ~= 1 && i == 0
-        aspect_angle = aspect_angle + motion;
+ function [new_dist_comm, rcs] = rcsSlosh(lambda, dist_comm,tank_h,slant_angle,Nsweep,type)
+ switch type
+     case 'height'
+        if Nsweep == 1
+        persistent orig_dist i
+        orig_dist = dist_comm;
+        else
+        delta_d = 0.05; %distance increment
+        new_dist_comm = dist_comm;
+        stop_condition = 0.3;
+        if Nsweep~= 1 && new_dist_comm < (orig_dist+stop_condition)
+            new_dist_comm = new_dist_comm + delta_d;
+            r = new_dist*tan(slant_angle*pi/180);
+            rcs = (4*pi^3*r^4)/ (lambda^2);
+                if new_dist == orig_dist + stop_condition 
+                    i = 2*(0.3/delta_d);
+                end
+        elseif Nsweep~= 1 && i ~= 0
+            dist_comm = dist_comm - delta_d;
+            r = dist_comm*tan((slant_angle/2)*pi/180);
+            rcs = (4*pi^3*r^4)/ (lambda^2);
+        else
+            r = dist_comm*tan((slant_angle/2)*pi/180);
+            rcs = (4*pi^3*r^4)/ (lambda^2);
+        end
+        end
+     case 'angular'
+        r = dist_comm*tan((slant_angle/2)*pi/180);
+        aspect_angle = 0; 
+        motion = 0.01; % angle deviation to increment by
+        stop_condition = 1; % point at which maximum angular deviation is reached
+        if NSweep ~= 1 && i == 0 
+        aspect_angle = aspect_angle + motion; 
             if aspect_angle == stop_condition
-                i = stop_condition/motion;
+                i = 2*(stop_condition/motion);
             end
-        elseif m ~= 1 
+        elseif Nsweep~= 1 
         aspect_angle = aspect_angle - motion;
         i = i-1;
-        end
-            
+        end    
         if aspect_angle ~= 0
+        k = 2*pi/lambda; %wave number 
         rcs = pi*(k^2)*(r^4)*((2*besselj(1,2*k*r*sin(aspect_angle*pi/180))/...
-            (2*k*r*sin(aspect_angle*pi/180)))^2)*cos(aspect_angle*pi/180)^2;
+            (2*k*r*sin(aspect_angle*pi/180)))^2)*cos(aspect_angle*pi/180)^2; 
         else
         rcs = (4*pi^3*r^4)/ (lambda^2);
         end
+ end
  end
  
  %% SNR smart calculation (Alex)
