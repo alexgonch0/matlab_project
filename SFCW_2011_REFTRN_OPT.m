@@ -26,16 +26,18 @@ Circulator_Isolation = -20;  % Issolation in TX RX circulator coupling
 
 slant_length    = 0.0115787; % (m) slant lenght of antenna
 slant_angle     = 22;        % (degrees) slant angle
-phys_ant_d      = 0.0381;
+phys_ant_d      = 0.0381;    % (m) physical antenna diameter
 tx_gain_db      = 15;        % Transmitter gain in dB
 rx_gain_db      = 20;        % Reciver gain in dB
 rx_nf           = 3;         % Noise Figure in dB
 
+fill_rate       = 0;         % (m/s) fill rate of oil, zero if not filling;
+slosh_type      = 'height';  % 'height' or angular or 'none' 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
-tank_h          = 3.20;
+tank_h          = 3.20;      % (m) full height of tank
 comm_perm       = 2.30;      % (e) Commodity permitivity
-air_perm        = 1.00;
-metal_perm      = 999;       % (e) Permtivity of metal 
+air_perm        = 1.00;      % (e) Air permitivity 
+metal_perm      = 999;       % (e) Metal permitivity 
 
 sweepType       = 'up';      % quad_up, up, down
 CALERROR        = true;      % non-linear calibration (deviations in calibration)
@@ -50,13 +52,13 @@ drift_dev       = 20e4;      % (Hz) Calibration deviation form ideal (random)
 %% Start Sweep Code
 lambda = c/fc;          % wavelength
 freqSteps = BW/freqStepSize;      % calculate number of steps
-
-
-%% Target Model
-c_comm = 1/ sqrt((4*pi*10^-7)*(8.854187*10^-12)*(comm_perm)); %Propagation speed calculation for comm
 c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e8; % speed of light 
 
-
+%% Target Model
+r = dist_comm*tan((slant_angle/2)*pi/180);
+rcs_comm = 4*pi^3*(r_metal)^4/lambda^2;
+c_comm = 1/ sqrt((4*pi*10^-7)*(8.854187*10^-12)*(comm_perm)); %Propagation speed calculation for comm
+r_metal = tank_h*tan((slant_angle/2)*pi/180);
 
 %% Radar System Setup
 % The rest of the radar system includes the transmitter, the receiver, and
@@ -65,10 +67,6 @@ c = 1/sqrt((4*pi*10^-7)*(8.854187*10^-12)); % propagation speed calculation = 3e
 % components, such as coupler and mixer. In addition, for the sake of
 % simplicity, the antenna is assumed to be isotropic and the gain of the
 % antenna is included in the transmitter and the receiver.
-
-k = 2*pi/lambda;
-r = dist_comm*tan((slant_angle/2)*pi/180); % for sloshing
-
 ant_diameter = sqrt(3*lambda*slant_length);
 effective_d = ant_diameter/phys_ant_d;
 ant_gain = ((pi*ant_diameter)/lambda)^2 * effective_d;
@@ -104,8 +102,12 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     LfspOneWay  = pathLoss(0,dist_comm,propFreq,c); 
     txInterface = txsig * LfspOneWay; 
 
-    %% If there is slowhing, get an RCS value
-    rcs_comm = 4*pi^3*(.1*dist_comm)^4/lambda^2;
+    %% Check for filling, sloshing, or constant
+    if fill_rate ~= 0
+        [dist_comm, rcs_comm] = fill_tank(lambda, fill_rate,dist_comm,tot_sweep_time,Nsweep,sweepNumber);
+    elseif strcmp(slosh_type, 'height') == 1 || strcmp(slosh_type, 'angular') == 1 
+        rcs_comm = rcsSlosh(lambda,sweepNumber,r,slosh_type);
+    end
 
     %% Calculate and apply the return signal from commdity back to ant and the delay
     returnsig  = txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
@@ -121,8 +123,8 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     txInterfaceOil = txInterfaceOil*reflectionCoeff(comm_perm,metal_perm); % reflect from bottom (mostly phase change of 180)
     txInterfaceOil = txInterfaceOil*LfspOneWay;
     txInterfaceOil = txInterfaceOil*transmissionCoeff(comm_perm,air_perm); % reflect oil to air boundry going back 
-    rcs = 4*pi^3*(.2*tank_h)^4/lambda^2;
-    txInterfaceOil = txInterfaceOil*rcs; % rcs would go here
+    rcs_metal = 4*pi^3*(r_metal)^4/lambda^2;
+    txInterfaceOil = txInterfaceOil*rcs_metal; % rcs would go here
     
     %% Combined recived signal from commodity and bottom
     Idata(stepNumber) = returnsig*(cos(-2*pi*propFreq*dist_comm*2/c));
@@ -144,8 +146,7 @@ rxsig = step(receiver,IQ_data);
 %rxsig = circulator(Circulator_Isolation,rxsig);
 %% Plot FFT and Range data
 FFT_range(c,rxsig,freqStepSize,sweepNumber,Nsweep,tank_h);
-end   
-    
+end    
 
  %% Creating a sine wave for every step with the given number of points
  % Fc (Hz): frequency step size
@@ -226,8 +227,6 @@ end
     xlabel('Range (m)')
     ylabel('|P1 db(m)|')
     title('SFCW IFFT Object Range and Magnitude');
-   
-
     
     %% Estimate Range:
     [y,x] = max(mag2db(P2(round(1/Xaxis(2)) : round(5/Xaxis(2))))); % find peak FFT point between 1m to 5m
@@ -257,8 +256,7 @@ end
         disp(stats_disp)
     end
  end
-
-
+ 
  %% Adding Circulator Coupling (RX TX coupling)
  % isolation: dB of issolation between the circulator
  % initial: the TX signal
@@ -290,7 +288,6 @@ end
  refCoeff = (sqrt(n1_enter) - sqrt(n2_exit))/(sqrt(n1_enter) + sqrt(n2_exit)); 
  end
  
- 
  %% Calculate transmision coeffeciant
  % n1: dielectric on side(1) entering
  % n2: dielectric on side(2) exiting
@@ -299,7 +296,14 @@ end
  trnCoeff = (2*sqrt(n1_enter)/(sqrt(n1_enter) + sqrt(n2_exit))); 
  end
  
- 
+%% Fill tank
+% Calculates the rcs and new distance to commodity while the tank is being
+% filled
+ function [new_dist_comm, rcs] = fill_tank(lambda,fill_rate,dist_comm,tot_sweep_time,Nsweep)
+ new_dist_comm = dist_comm - (fill_rate*(tot_sweep_time/Nsweep));
+ r = dist_comm*tan((slant_angle/2)*pi/180);
+ rcs = (4*pi^3*r^4)/ (lambda^2);
+ end
  
  %% Sloshing
  % Dani code... need to comment
@@ -324,7 +328,6 @@ end
         else
         rcs = (4*pi^3*r^4)/ (lambda^2);
         end
- 
  end
  
  %% SNR smart calculation (Alex)
