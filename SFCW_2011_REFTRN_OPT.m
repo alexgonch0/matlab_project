@@ -43,7 +43,7 @@ sweepType       = 'up';      % quad_up, up, down
 CALERROR        = true;      % non-linear calibration (deviations in calibration)
 POWERVAR        = false;     % Simulate Power variation
 call_dev        = 1000e4;     % (Hz) Calibration deviation 1sigma from ideal
-drift_dev       = 400e3;     % (Hz) Calibration deviation form ideal (random)
+drift_dev       = 500e3;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -221,10 +221,10 @@ end
 
     Y = ifft((B*L)); % undo the IFFT division by N and decimation division
     P2 = abs(Y);
-    
-    figure(2)
+    P2 = P2/2.2;
+    figure(2);
     hold on
-    plot(Xaxis,mag2db(P2/2.5))
+    plot(Xaxis,mag2db(P2))
     axis([0 10 -60 30])
     title('Range Power Plot')
     xlabel('Range (m)')
