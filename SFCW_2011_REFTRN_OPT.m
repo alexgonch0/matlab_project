@@ -13,11 +13,11 @@
 % # The signal is LPF filltered to remove the IQ DC jumps in the FFT.
 % # FFT and range plotted 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+clear all
 
 %% User Entry Here
 fc = 24e9;       % 24 GHz is the system operating frequency
-Nsweep = 10;      % Number of sweep for the radar to perform with the radar (overlap the plots)
+Nsweep = 100;      % Number of sweep for the radar to perform with the radar (overlap the plots)
 BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
 
 freqStepSize    = 1e6;       % Frequency step size
@@ -27,23 +27,23 @@ Circulator_Isolation = -20;  % Issolation in TX RX circulator coupling
 slant_length    = 0.0115787; % (m) slant lenght of antenna
 slant_angle     = 22;        % (degrees) slant angle
 phys_ant_d      = 0.0381;    % (m) physical antenna diameter
-tx_gain_db      = 15;        % Transmitter gain in dB
-rx_gain_db      = 20;        % Reciver gain in dB
+tx_gain_db      = 14;        % Transmitter gain in dB
+rx_gain_db      = 11;        % Reciver gain in dB
 rx_nf           = 3;         % Noise Figure in dB
 
-fill_rate       = 0.3;       % (m/s) fill rate of oil, zero if not filling;
+fill_rate       = 0.0;       % (m/s) fill rate of oil, zero if not filling;
 slosh_type      = 'none';    % 'height' or angular or 'none' 
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
-tank_h          = 3.20;      % (m) full height of tank
-comm_perm       = 2.30;      % (e) Commodity permitivity
+tank_h          = 3.17;      % (m) full height of tank
+comm_perm       = 1.00;      % (e) Commodity permitivity
 air_perm        = 1.00;      % (e) Air permitivity 
 metal_perm      = 999;       % (e) Metal permitivity 
 
 sweepType       = 'up';      % quad_up, up, down
 CALERROR        = true;      % non-linear calibration (deviations in calibration)
 POWERVAR        = false;     % Simulate Power variation
-call_dev        = 300e4;     % (Hz) Calibration deviation 1sigma from ideal
-drift_dev       = 20e4;      % (Hz) Calibration deviation form ideal (random)
+call_dev        = 1000e4;     % (Hz) Calibration deviation 1sigma from ideal
+drift_dev       = 400e3;     % (Hz) Calibration deviation form ideal (random)
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -113,7 +113,7 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     returnsig  = txInterface*reflectionCoeff(air_perm,comm_perm); % return signal 
     LfspOneWay = pathLoss(0,dist_comm,propFreq,c); 
     returnsig  = returnsig*LfspOneWay;
-    returnsig  = returnsig*rcs_comm; % rcs here
+    returnsig  = returnsig*rcs_comm*.1; % rcs here
 
     
     %% Calculate and apply the signal from commdity to bottom with delays
@@ -124,7 +124,8 @@ driftedCalFreq = DriftCalibraton(drift_dev,frequencyForCal,CALERROR);
     txInterfaceOil = txInterfaceOil*LfspOneWay;
     txInterfaceOil = txInterfaceOil*transmissionCoeff(comm_perm,air_perm); % reflect oil to air boundry going back 
     rcs_metal = 4*pi^3*(r_metal)^4/lambda^2;
-    txInterfaceOil = txInterfaceOil*rcs_metal; % rcs would go here
+    trigFudgeFactor = 6.5;
+    txInterfaceOil = txInterfaceOil*rcs_metal*trigFudgeFactor; % rcs
     
     %% Combined recived signal from commodity and bottom
     Idata(stepNumber) = returnsig*(cos(-2*pi*propFreq*dist_comm*2/c));
@@ -143,9 +144,11 @@ hold on
 plot(Idata)
 rxsig = step(receiver,IQ_data);
 %% Add circulator coupling as DC offset
-%rxsig = circulator(Circulator_Isolation,rxsig);
+rxsig = circulator(Circulator_Isolation,rxsig);
 %% Plot FFT and Range data
 FFT_range(c,rxsig,freqStepSize,sweepNumber,Nsweep,tank_h);
+
+
 end    
 
  %% Creating a sine wave for every step with the given number of points
@@ -221,7 +224,7 @@ end
     
     figure(2)
     hold on
-    plot(Xaxis,mag2db(P2))
+    plot(Xaxis,mag2db(P2/2.5))
     axis([0 10 -60 30])
     title('Range Power Plot')
     xlabel('Range (m)')
@@ -230,10 +233,10 @@ end
     
     %% Estimate Range:
     [y,x] = max(mag2db(P2(round(1/Xaxis(2)) : round(5/Xaxis(2))))); % find peak FFT point between 1m to 5m
-    disp(num2str(x))
+    disp(x)
     peak_x = Xaxis(x + round(1/Xaxis(2)));
     disp('Distance to the oil level based on FFT (m):')
-    disp(num2str(peak_x))
+    disp(peak_x)
     
     %% Calculate SNR:
     snr = calculateSNR(P2, Xaxis, tank_h);
@@ -263,7 +266,7 @@ end
  % target: the RX signal
  % Returns: the initial recived signal with a portion of the TX signal 
  function [txsig_out] = circulator(isolation, initial)
-    TrigFudgeFactor = 0.35; %match data to plots
+    TrigFudgeFactor = 1.8; %match data to plots
     DCoffset  =  max(abs(initial)) + TrigFudgeFactor;
     isolation =  10^(isolation/10); % convert from db to linear
     txsig_out =  initial + isolation * DCoffset;
@@ -285,7 +288,7 @@ end
  % n2: dielectric on side(2) exiting
  % Returns: the reflection coeffeciant
  function [refCoeff] = reflectionCoeff(n1_enter, n2_exit)
- refCoeff = (sqrt(n1_enter) - sqrt(n2_exit))/(sqrt(n1_enter) + sqrt(n2_exit)); 
+ refCoeff = ((n1_enter) - (n2_exit))/((n1_enter) + (n2_exit)); 
  end
  
  %% Calculate transmision coeffeciant
@@ -293,7 +296,7 @@ end
  % n2: dielectric on side(2) exiting
  % Returns: the transmition coeffeciant
  function [trnCoeff] = transmissionCoeff(n1_enter, n2_exit)
- trnCoeff = (2*sqrt(n1_enter)/(sqrt(n1_enter) + sqrt(n2_exit))); 
+ trnCoeff = (2*(n1_enter)/((n1_enter) + (n2_exit))); 
  end
  
 %% Fill tank
@@ -373,10 +376,10 @@ end
     
     %% Define window in terms of y_data indices:   
     %peak_index = round(peak_position/x_data(2));
-    [y_max peak_index] = max(y_data(600:6200));   % find max between 0.3 and 3.1 m
+    [y_max peak_index] = max(y_data(600:8000));   % find max between 0.3 and 3.1 m
     peak_index = peak_index + 600;                % fix the 0.3 m offset
     disp('CORRECT peak_position (m):')
-    disp(num2str(peak_index/2000))
+    disp((peak_index/2000))
     
     %% Collect noise floor data:
     noise_data = [];    
