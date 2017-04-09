@@ -16,34 +16,38 @@
 clear all
 
 %% User Entry Here
-fc = 24e9;       % 24 GHz is the system operating frequency
-Nsweep = 100;      % Number of sweep for the radar to perform with the radar (overlap the plots)
-BW = 2e9;        % 2 GHz System Bandwidth (higer bandwidth provides better resolution for target range)
-
+%Main system parameters 
+fc = 24e9;     % 24 GHz is the system operating frequency
+Nsweep = 1;  % Number of sweep for the radar to perform with the radar (overlap the plots)
+BW = 2e9;      % 2 GHz Bandwidth (higer bandwidth provides better resolution for target range)
 freqStepSize    = 1e6;       % Frequency step size
 tot_sweep_time  = 1e-3;      % (s) used in sloshing
-Circulator_Isolation = -20;  % Issolation in TX RX circulator coupling
 
-slant_length    = 0.0115787; % (m) slant lenght of antenna
+%Antenna and system gains
+slant_length    = 0.0115787; % (m) slant length of antenna
 slant_angle     = 22;        % (degrees) slant angle
 phys_ant_d      = 0.0381;    % (m) physical antenna diameter
-tx_gain_db      = 14;        % Transmitter gain in dB
-rx_gain_db      = 11;        % Reciver gain in dB
-rx_nf           = 3;         % Noise Figure in dB
+tx_gain_db      = 14;        % (dB) Transmitter gain
+rx_gain_db      = 11;        % (dB) Reciver gain  
+rx_nf           = 3;         % (dB) Noise Figure  
 
-fill_rate       = 0.0;       % (m/s) fill rate of oil, zero if not filling;
-slosh_type      = 'none';    % 'height' or angular or 'none' 
+%Tank and commodity parameters
+fill_rate       = 0.0;       % (m/s) fill rate of oil, zero if not filling
 dist_comm       = 2.00;      % (m) distance between the radar and commodity surface
 tank_h          = 3.17;      % (m) full height of tank
 comm_perm       = 1.00;      % (e) Commodity permitivity
 air_perm        = 1.00;      % (e) Air permitivity 
 metal_perm      = 999;       % (e) Metal permitivity 
 
-sweepType       = 'up';      % quad_up, up, down
+%sloshing,sweeping,circulator and calibration errors
+slosh_type      = 'none';    % 'height'/'angular'/'ripple'/'none' 
+sweepType       = 'up';      % quad_up, up,
 CALERROR        = true;      % non-linear calibration (deviations in calibration)
 POWERVAR        = false;     % Simulate Power variation
-call_dev        = 1000e4;     % (Hz) Calibration deviation 1sigma from ideal
-drift_dev       = 500e3;     % (Hz) Calibration deviation form ideal (random)
+call_dev        = 1000e4;    % (Hz) Calibration deviation one-sigma from ideal
+drift_dev       = 500e3;     % (Hz) Calibration deviation from ideal
+Circulator_Isolation = -100;  % (dB) Isolation in TX RX circulator coupling
+
 % End User Entry                     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
